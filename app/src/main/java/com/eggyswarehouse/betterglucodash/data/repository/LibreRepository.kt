@@ -115,12 +115,21 @@ class LibreRepository(
             )
 
             if (!token.isNullOrEmpty()) {
+                // User identity isolation: wipe stale glucose data before persisting
+                // credentials for a different account. Same user re-login preserves data.
+                val newAccountId = sha256(userId.orEmpty())
+                val existingAccountId = authManager.cachedAccountId
+                if (!existingAccountId.isNullOrEmpty() && existingAccountId != newAccountId) {
+                    Log.i(TAG, "login → different account detected, wiping glucose DB")
+                    glucoseDao.deleteAll()
+                }
+
                 authManager.saveToken(token)
                 authManager.saveRegion(region)
                 Log.d(TAG, "login → token and region saved")
 
                 if (!userId.isNullOrEmpty()) {
-                    authManager.saveAccountId(sha256(userId))
+                    authManager.saveAccountId(newAccountId)
                     Log.d(TAG, "login → account-id saved")
                 } else {
                     Log.w(TAG, "login → userId missing — account-id NOT saved")

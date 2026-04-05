@@ -13,6 +13,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -20,6 +22,7 @@ import com.eggyswarehouse.betterglucodash.ui.auth.LoginScreen
 import com.eggyswarehouse.betterglucodash.ui.dashboard.DashboardScreen
 import com.eggyswarehouse.betterglucodash.ui.navigation.Screen
 import com.eggyswarehouse.betterglucodash.ui.theme.BetterGlucoDashTheme
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -28,7 +31,10 @@ class MainActivity : ComponentActivity() {
 
         enableEdgeToEdge()
         setContent {
-            BetterGlucoDashTheme {
+            val isDark by authManager.themeIsDarkFlow
+                .collectAsStateWithLifecycle(initialValue = true)
+
+            BetterGlucoDashTheme(forceDark = isDark) {
                 // Determine the start destination asynchronously by checking for a
                 // persisted JWT. Null means we're still resolving — nothing is rendered yet.
                 var startDestination by remember { mutableStateOf<String?>(null) }
@@ -65,7 +71,13 @@ class MainActivity : ComponentActivity() {
                                         navController.navigate(Screen.Login.route) {
                                             popUpTo(0) { inclusive = true }
                                         }
-                                    }
+                                    },
+                                    onThemeToggle = {
+                                        lifecycleScope.launch {
+                                            authManager.setThemeIsDark(!isDark)
+                                        }
+                                    },
+                                    isDarkTheme = isDark
                                 )
                             }
                         }

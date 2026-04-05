@@ -30,6 +30,8 @@ import com.eggyswarehouse.betterglucodash.ui.theme.glucoseColors
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlin.math.ceil
+import kotlin.math.floor
 
 // ── FreeStyle Libre sensor range constants ────────────────────────────────────
 // TODO(V3): move to a shared GlucoseConstants.kt when additional screens need these.
@@ -51,11 +53,25 @@ private const val LIBRE_MIN_MGDL = 40.0
 private const val TARGET_LOW_MGDL = 70.0
 private const val TARGET_HIGH_MGDL = 180.0
 
-/** Left-margin pixels reserved for Y-axis labels. */
-private const val LABEL_MARGIN_PX = 38f
+/**
+ * Left-margin for Y-axis labels in **dp** (density-independent).
+ * This must be dp, not physical pixels — the sticky overlay Canvas uses [Modifier.width]
+ * which takes dp, and the text measurer returns sizes scaled to the display density.
+ * 36dp comfortably fits "10.0" / "180" at 9sp on any display density.
+ */
+private const val LABEL_MARGIN_DP = 36f
 
-/** Bottom padding so the curve never clips the very bottom edge. */
-private const val BOTTOM_PAD_PX = 12f
+/** Bottom padding below the X-axis strip. */
+private const val BOTTOM_PAD_PX = 6f
+
+/** Height of the X-axis time-label strip at the bottom of the chart. */
+private const val X_AXIS_HEIGHT_PX = 28f
+
+/**
+ * Right-side clearance for the tip dot in dp.
+ * Prevents the glow halo (18dp radius) from being clipped at the canvas right edge.
+ */
+private const val CHART_RIGHT_PAD_DP = 20f
 
 // TODO(V3): track when these M3 Expressive APIs stabilize
 /**
@@ -87,14 +103,14 @@ fun GlucoseGraphCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(
-            modifier = Modifier.padding(top = 20.dp, start = 16.dp, end = 16.dp, bottom = 16.dp)
+            modifier = Modifier.padding(top = 20.dp, start = 8.dp, end = 8.dp, bottom = 16.dp)
         ) {
             // ── Title ─────────────────────────────────────────────────────────
             Text(
                 text = "Glucose Trend",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface,
+                color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.fillMaxWidth(),
                 textAlign = TextAlign.Center
             )
@@ -174,18 +190,16 @@ private fun GraphLoadingContent() {
 }
 
 /**
- * Interactive, horizontally scrollable glucose chart.
+ * Interactive, horizontally scrollable glucose chart with sticky Y-axis.
  *
  * Architecture:
  *  1. [BoxWithConstraints] measures the visible width.
  *  2. Virtual canvas width = max(screen, points × 8dp) so data is spread naturally.
- *  3. [horizontalScroll] pans the canvas; swiping does NOT conflict with the crosshair
- *     because the crosshair is set only on tap, not drag.
- *  4. The crosshair tooltip is drawn directly on-canvas via [GlucoseGraphRenderer.drawTooltip]
- *     so it scrolls with the data — no Popup needed.
- *  5. [LaunchedEffect] auto-scrolls to the rightmost (most recent) data on load.
- *  6. Pixel mapping is computed in [remember] during composition — never inside the
- *     Canvas draw lambda — to avoid Compose ordering violations.
+ *  3. [horizontalScroll] pans the chart; the crosshair is set only on tap, not drag.
+ *  4. A sticky [Canvas] overlay (width = LABEL_MARGIN_PX) sits on top of the scrollable
+ *     row and draws Y-axis labels with an opaque background — so they never scroll away.
+ *  5. X-axis time labels are drawn on the scrollable canvas below the data area.
+ *  6. Pixel mapping is computed in [remember] during composition — never in draw lambdas.
  */
 @Composable
 private fun ChartCanvas(points: List<GraphPoint>, crosshairIndex: Int?, onCrosshairMoved: (Int?) -> Unit, animateEntry: Boolean) {
@@ -202,17 +216,34 @@ private fun ChartCanvas(points: List<GraphPoint>, crosshairIndex: Int?, onCrossh
 
     val glucoseColors = MaterialTheme.glucoseColors
     val onSurface = MaterialTheme.colorScheme.onSurface
-    val surfaceColor = MaterialTheme.colorScheme.surface
     val tooltipBg = MaterialTheme.colorScheme.inverseSurface
     val tooltipText = MaterialTheme.colorScheme.inverseOnSurface
+    val chartBgColor = MaterialTheme.colorScheme.surfaceVariant
 
-    // Unit detection: use the region stored in each point — no value-threshold heuristic.
     val isMmol = points.first().region.isMetric
-    val axisMin = if (isMmol) LIBRE_MIN_MMOL else LIBRE_MIN_MGDL
-    val axisMax = if (isMmol) LIBRE_MAX_MMOL else LIBRE_MAX_MGDL
     val tgtLow = if (isMmol) TARGET_LOW_MMOL else TARGET_LOW_MGDL
     val tgtHigh = if (isMmol) TARGET_HIGH_MMOL else TARGET_HIGH_MGDL
-    val gridStep = if (isMmol) 5.0 else 50.0
+
+    // ── Data-driven Y-axis ────────────────────────────────────────────────────
+    val sentinelLow = if (isMmol) LIBRE_MIN_MMOL else LIBRE_MIN_MGDL
+    val sentinelHigh = if (isMmol) LIBRE_MAX_MMOL else LIBRE_MAX_MGDL
+    val inRangeValues = points
+        .map { it.value }
+        .filter { it > sentinelLow + 0.05 && it < sentinelHigh - 0.05 }
+    val dataMin = inRangeValues.minOrNull() ?: tgtLow
+    val dataMax = inRangeValues.maxOrNull() ?: tgtHigh
+
+    // 2 mmol/L step → even labels 4, 6, 8, 10, 12…; 40 mg/dL equivalent.
+    val gridStep = if (isMmol) 2.0 else 40.0
+    val axisPad = if (isMmol) 1.0 else 20.0
+    val axisMin = maxOf(
+        floor((minOf(dataMin, tgtLow) - axisPad) / gridStep) * gridStep,
+        sentinelLow
+    )
+    val axisMax = minOf(
+        ceil((maxOf(dataMax, tgtHigh) + axisPad) / gridStep) * gridStep,
+        sentinelHigh
+    )
 
     val lineColor: Color =
         when (points.last().color) {
@@ -224,145 +255,154 @@ private fun ChartCanvas(points: List<GraphPoint>, crosshairIndex: Int?, onCrossh
 
     val drawProgress by animateFloatAsState(
         targetValue = 1f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioLowBouncy,
-            stiffness = Spring.StiffnessLow
-        ),
+        animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessLow),
         label = "GraphDrawProgress"
     )
 
     val scrollState = rememberScrollState()
     val textMeasurer = rememberTextMeasurer()
     val timeFormat = remember { SimpleDateFormat("h:mm a", Locale.getDefault()) }
+    val xAxisTimeFormat = remember { SimpleDateFormat("h a", Locale.getDefault()) }
 
-    // Jump to most-recent (right) data when a new range loads
-    LaunchedEffect(points.firstOrNull()?.timestamp) {
-        scrollState.animateScrollTo(scrollState.maxValue)
-    }
-    // Dismiss crosshair while the user is panning
-    LaunchedEffect(scrollState.isScrollInProgress) {
-        if (scrollState.isScrollInProgress) onCrosshairMoved(null)
+    val timeStart = points.first().timestamp
+    val timeEnd = points.last().timestamp
+    val timeSpan = (timeEnd - timeStart).coerceAtLeast(1L)
+    val timeSpanHours = timeSpan / 3_600_000.0
+    val tickIntervalMs = when {
+        timeSpanHours <= 4.0 -> 60 * 60_000L
+        timeSpanHours <= 14.0 -> 2 * 60 * 60_000L
+        else -> 4 * 60 * 60_000L
     }
 
-    // Canvas size captured via onSizeChanged. Pixel mapping computed in remember()
-    // so that the draw lambda only reads — never writes — state (Compose ordering rule).
+    LaunchedEffect(points.firstOrNull()?.timestamp) { scrollState.animateScrollTo(scrollState.maxValue) }
+    LaunchedEffect(scrollState.isScrollInProgress) { if (scrollState.isScrollInProgress) onCrosshairMoved(null) }
+
+    // Resolve dp constants once in composition — dp → px for canvas drawing coordinates.
+    val density = LocalDensity.current
+    val labelMarginPx = with(density) { LABEL_MARGIN_DP.dp.toPx() }
+    val chartRightPadPx = with(density) { CHART_RIGHT_PAD_DP.dp.toPx() }
+
     var canvasSize by remember { mutableStateOf(Size.Zero) }
 
+    // dataBottomY = bottom of the plotted data area; below it sits the X-axis strip.
     val mappedPoints: List<Offset> =
         remember(points, canvasSize, axisMin, axisMax) {
             if (canvasSize.width == 0f || canvasSize.height == 0f) return@remember emptyList()
-            val chartWidth = canvasSize.width - LABEL_MARGIN_PX
-            val chartHeight = canvasSize.height - BOTTOM_PAD_PX
+            val chartWidth = canvasSize.width - labelMarginPx - chartRightPadPx
+            val dataBottomY = canvasSize.height - BOTTOM_PAD_PX - X_AXIS_HEIGHT_PX
             val yRange = axisMax - axisMin
-            val timeStart = points.first().timestamp
-            val timeEnd = points.last().timestamp
-            val timeSpan = (timeEnd - timeStart).coerceAtLeast(1L)
             points.map { pt ->
                 Offset(
-                    x =
-                    LABEL_MARGIN_PX +
-                        ((pt.timestamp - timeStart).toFloat() / timeSpan) * chartWidth,
-                    y =
-                    canvasSize.height - BOTTOM_PAD_PX -
-                        ((pt.value - axisMin) / yRange * chartHeight).toFloat()
+                    x = labelMarginPx + ((pt.timestamp - timeStart).toFloat() / timeSpan) * chartWidth,
+                    y = dataBottomY - ((pt.value - axisMin) / yRange * dataBottomY).toFloat()
                 )
             }
         }
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-        val density = LocalDensity.current
         val screenWidthPx = constraints.maxWidth.toFloat()
-
-        // Minimum 8dp per data point gives a natural, non-cramped chart
         val minSpacingPx = with(density) { 8.dp.toPx() }
-        val virtualWidthPx =
-            (points.size * minSpacingPx + LABEL_MARGIN_PX)
-                .coerceAtLeast(screenWidthPx)
+        val virtualWidthPx = (points.size * minSpacingPx + labelMarginPx + chartRightPadPx).coerceAtLeast(screenWidthPx)
         val virtualWidthDp = with(density) { virtualWidthPx.toDp() }
 
-        Row(
-            modifier =
-            Modifier
-                .fillMaxSize()
-                .horizontalScroll(scrollState)
-        ) {
-            Canvas(
-                modifier =
-                Modifier
-                    .width(virtualWidthDp)
-                    .fillMaxHeight()
-                    .onSizeChanged { sz ->
-                        canvasSize = Size(sz.width.toFloat(), sz.height.toFloat())
-                    }.pointerInput(points) {
-                        detectTapGestures { tapOffset ->
-                            val idx = GlucoseGraphRenderer.findNearestPointIndex(
-                                tapOffset.x,
-                                mappedPoints
-                            )
-                            if (idx == crosshairIndex) {
-                                onCrosshairMoved(null)
-                            } else {
-                                onCrosshairMoved(idx)
+        Box(modifier = Modifier.fillMaxSize()) {
+            // ── Scrollable chart canvas ───────────────────────────────────────
+            Row(modifier = Modifier.fillMaxSize().horizontalScroll(scrollState)) {
+                Canvas(
+                    modifier = Modifier
+                        .width(virtualWidthDp)
+                        .fillMaxHeight()
+                        .onSizeChanged { sz -> canvasSize = Size(sz.width.toFloat(), sz.height.toFloat()) }
+                        // crosshairIndex in key so the lambda always sees the current value
+                        // (avoids stale-closure bug where toggle-off compares against old index).
+                        .pointerInput(points, crosshairIndex) {
+                            detectTapGestures { tapOffset ->
+                                val idx = GlucoseGraphRenderer.findNearestPointIndex(tapOffset.x, mappedPoints)
+                                if (idx == crosshairIndex) onCrosshairMoved(null) else onCrosshairMoved(idx)
                             }
                         }
+                ) {
+                    if (size.width == 0f || size.height == 0f) return@Canvas
+                    if (mappedPoints.isEmpty()) return@Canvas
+
+                    val dataBottomY = size.height - BOTTOM_PAD_PX - X_AXIS_HEIGHT_PX
+                    val yRange = axisMax - axisMin
+                    fun valueToY(v: Double): Float = dataBottomY - ((v - axisMin) / yRange * dataBottomY).toFloat()
+
+                    with(GlucoseGraphRenderer) {
+                        // 1. Target band
+                        drawTargetBand(
+                            lowY = valueToY(tgtLow),
+                            highY = valueToY(tgtHigh),
+                            bandColor = glucoseColors.inRange.copy(alpha = 0.10f)
+                        )
+                        // 2. Gridlines (lines only — Y labels on sticky overlay)
+                        drawGridlines(
+                            minValue = axisMin,
+                            maxValue = axisMax,
+                            stepValue = gridStep,
+                            targetLow = tgtLow,
+                            targetHigh = tgtHigh,
+                            gridColor = onSurface.copy(alpha = 0.18f),
+                            targetColor = glucoseColors.inRange.copy(alpha = 0.55f),
+                            valueToY = ::valueToY
+                        )
+                        // 3. Bezier line + fill + glow
+                        drawGlucoseLine(
+                            points = mappedPoints,
+                            lineColor = lineColor,
+                            progress = if (animateEntry) drawProgress else 1f
+                        )
+                        // 4. X-axis time labels
+                        drawXAxisLabels(
+                            timeStart = timeStart,
+                            timeEnd = timeEnd,
+                            tickIntervalMs = tickIntervalMs,
+                            chartLeftX = labelMarginPx,
+                            dataBottomY = dataBottomY,
+                            textMeasurer = textMeasurer,
+                            labelColor = onSurface.copy(alpha = 0.55f),
+                            formatTime = { ms -> xAxisTimeFormat.format(Date(ms)) }
+                        )
+                        // 5. Crosshair + on-canvas tooltip
+                        if (crosshairIndex != null && crosshairIndex in mappedPoints.indices) {
+                            drawCrosshair(x = mappedPoints[crosshairIndex].x, color = onSurface.copy(alpha = 0.55f))
+                            val pt = points[crosshairIndex]
+                            drawTooltip(
+                                x = mappedPoints[crosshairIndex].x,
+                                y = mappedPoints[crosshairIndex].y,
+                                valueLabel = "%.1f".format(pt.value),
+                                timeLabel = timeFormat.format(Date(pt.timestamp)),
+                                textMeasurer = textMeasurer,
+                                bgColor = tooltipBg,
+                                textColor = tooltipText
+                            )
+                        }
                     }
-            ) {
-                if (size.width == 0f || size.height == 0f) return@Canvas
-                if (mappedPoints.isEmpty()) return@Canvas
+                }
+            }
 
-                val chartWidth = size.width - LABEL_MARGIN_PX
-                val chartHeight = size.height - BOTTOM_PAD_PX
+            // ── Sticky Y-axis overlay ─────────────────────────────────────────
+            // Sits on top of the scrollable row. Opaque background hides chart content
+            // scrolling underneath. Width = LABEL_MARGIN_DP so it never clips labels.
+            Canvas(modifier = Modifier.width(LABEL_MARGIN_DP.dp).fillMaxHeight()) {
+                val dataBottomY = size.height - BOTTOM_PAD_PX - X_AXIS_HEIGHT_PX
                 val yRange = axisMax - axisMin
+                fun overlayValueToY(v: Double): Float = dataBottomY - ((v - axisMin) / yRange * dataBottomY).toFloat()
 
-                fun valueToY(v: Double): Float = size.height - BOTTOM_PAD_PX - ((v - axisMin) / yRange * chartHeight).toFloat()
-
+                drawRect(color = chartBgColor)
                 with(GlucoseGraphRenderer) {
-                    // 1. Target band
-                    drawTargetBand(
-                        lowY = valueToY(tgtLow),
-                        highY = valueToY(tgtHigh),
-                        bandColor = glucoseColors.inRange.copy(alpha = 0.10f)
-                    )
-
-                    // 2. Gridlines + labels
-                    drawGridlines(
+                    drawYAxisLabels(
                         minValue = axisMin,
                         maxValue = axisMax,
                         stepValue = gridStep,
                         targetLow = tgtLow,
                         targetHigh = tgtHigh,
-                        gridColor = onSurface.copy(alpha = 0.18f),
-                        targetColor = glucoseColors.inRange.copy(alpha = 0.55f),
                         textMeasurer = textMeasurer,
                         labelColor = onSurface.copy(alpha = 0.60f),
-                        valueToY = ::valueToY
+                        targetColor = glucoseColors.inRange.copy(alpha = 0.55f),
+                        valueToY = ::overlayValueToY
                     )
-
-                    // 3. Bezier line + fill + glow
-                    drawGlucoseLine(
-                        points = mappedPoints,
-                        lineColor = lineColor,
-                        progress = if (animateEntry) drawProgress else 1f,
-                        surfaceColor = surfaceColor
-                    )
-
-                    // 4. Crosshair + on-canvas tooltip
-                    if (crosshairIndex != null && crosshairIndex in mappedPoints.indices) {
-                        drawCrosshair(
-                            x = mappedPoints[crosshairIndex].x,
-                            color = onSurface.copy(alpha = 0.55f)
-                        )
-                        val pt = points[crosshairIndex]
-                        drawTooltip(
-                            x = mappedPoints[crosshairIndex].x,
-                            y = mappedPoints[crosshairIndex].y,
-                            valueLabel = "%.1f".format(pt.value),
-                            timeLabel = timeFormat.format(Date(pt.timestamp)),
-                            textMeasurer = textMeasurer,
-                            bgColor = tooltipBg,
-                            textColor = tooltipText
-                        )
-                    }
                 }
             }
         }

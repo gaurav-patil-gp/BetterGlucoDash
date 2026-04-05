@@ -14,7 +14,7 @@
     <ID>FunctionNaming:AverageCard.kt$@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class) @Composable fun AverageCard(state: AverageState, modifier: Modifier = Modifier)</ID>
     <ID>FunctionNaming:CurrentGlucoseCard.kt$@OptIn(ExperimentalMaterial3ExpressiveApi::class) @Composable fun CurrentGlucoseCard(state: DashboardUiState, modifier: Modifier = Modifier)</ID>
     <ID>FunctionNaming:CurrentGlucoseCard.kt$@OptIn(ExperimentalMaterial3ExpressiveApi::class) @Composable private fun LoadingHero()</ID>
-    <ID>FunctionNaming:DashboardScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun DashboardScreen( onLogout: () -&gt; Unit, dashboardViewModel: DashboardViewModel = viewModel(factory = DashboardViewModel.Factory), graphViewModel: GlucoseGraphViewModel = viewModel(factory = GlucoseGraphViewModel.Factory), averageViewModel: AverageViewModel = viewModel(factory = AverageViewModel.Factory), a1cViewModel: A1cViewModel = viewModel(factory = A1cViewModel.Factory) )</ID>
+    <ID>FunctionNaming:DashboardScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun DashboardScreen( onLogout: () -&gt; Unit, onThemeToggle: () -&gt; Unit = {}, isDarkTheme: Boolean = true, dashboardViewModel: DashboardViewModel = viewModel(factory = DashboardViewModel.Factory), graphViewModel: GlucoseGraphViewModel = viewModel(factory = GlucoseGraphViewModel.Factory), averageViewModel: AverageViewModel = viewModel(factory = AverageViewModel.Factory), a1cViewModel: A1cViewModel = viewModel(factory = A1cViewModel.Factory) )</ID>
     <ID>FunctionNaming:GlucoseGraphCard.kt$@Composable private fun ChartCanvas(points: List&lt;GraphPoint&gt;, crosshairIndex: Int?, onCrosshairMoved: (Int?) -&gt; Unit, animateEntry: Boolean)</ID>
     <ID>FunctionNaming:GlucoseGraphCard.kt$@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class) @Composable fun GlucoseGraphCard( state: GlucoseGraphUiState, onRangeSelected: (TimeRange) -&gt; Unit, onCrosshairMoved: (Int?) -&gt; Unit, modifier: Modifier = Modifier )</ID>
     <ID>FunctionNaming:GlucoseGraphCard.kt$@OptIn(ExperimentalMaterial3ExpressiveApi::class) @Composable private fun GraphLoadingContent()</ID>
@@ -23,12 +23,15 @@
     <ID>LongMethod:A1cCard.kt$@OptIn(ExperimentalMaterial3ExpressiveApi::class) @Composable fun A1cCard(state: A1cState, modifier: Modifier = Modifier)</ID>
     <ID>LongMethod:AverageCard.kt$@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class) @Composable fun AverageCard(state: AverageState, modifier: Modifier = Modifier)</ID>
     <ID>LongMethod:CurrentGlucoseCard.kt$@OptIn(ExperimentalMaterial3ExpressiveApi::class) @Composable fun CurrentGlucoseCard(state: DashboardUiState, modifier: Modifier = Modifier)</ID>
-    <ID>LongMethod:DashboardScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun DashboardScreen( onLogout: () -&gt; Unit, dashboardViewModel: DashboardViewModel = viewModel(factory = DashboardViewModel.Factory), graphViewModel: GlucoseGraphViewModel = viewModel(factory = GlucoseGraphViewModel.Factory), averageViewModel: AverageViewModel = viewModel(factory = AverageViewModel.Factory), a1cViewModel: A1cViewModel = viewModel(factory = A1cViewModel.Factory) )</ID>
+    <ID>LongMethod:DashboardScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun DashboardScreen( onLogout: () -&gt; Unit, onThemeToggle: () -&gt; Unit = {}, isDarkTheme: Boolean = true, dashboardViewModel: DashboardViewModel = viewModel(factory = DashboardViewModel.Factory), graphViewModel: GlucoseGraphViewModel = viewModel(factory = GlucoseGraphViewModel.Factory), averageViewModel: AverageViewModel = viewModel(factory = AverageViewModel.Factory), a1cViewModel: A1cViewModel = viewModel(factory = A1cViewModel.Factory) )</ID>
     <ID>LongMethod:GlucoseGraphCard.kt$@Composable private fun ChartCanvas(points: List&lt;GraphPoint&gt;, crosshairIndex: Int?, onCrosshairMoved: (Int?) -&gt; Unit, animateEntry: Boolean)</ID>
     <ID>LongMethod:GlucoseGraphCard.kt$@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class) @Composable fun GlucoseGraphCard( state: GlucoseGraphUiState, onRangeSelected: (TimeRange) -&gt; Unit, onCrosshairMoved: (Int?) -&gt; Unit, modifier: Modifier = Modifier )</ID>
     <ID>LongMethod:LibreRepository.kt$LibreRepository$suspend fun login(email: String, pass: String, region: String): Result&lt;Unit&gt;</ID>
     <ID>LongMethod:LoginScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun LoginScreen(onLoginSuccess: () -&gt; Unit, viewModel: AuthViewModel = viewModel(factory = AuthViewModel.Factory))</ID>
-    <ID>LongParameterList:GlucoseGraphRenderer.kt$GlucoseGraphRenderer$( minValue: Double, maxValue: Double, stepValue: Double, targetLow: Double, targetHigh: Double, gridColor: Color, targetColor: Color, textMeasurer: TextMeasurer, labelColor: Color, valueToY: (Double) -&gt; Float )</ID>
+    <ID>LongParameterList:DashboardScreen.kt$( onLogout: () -&gt; Unit, onThemeToggle: () -&gt; Unit = {}, isDarkTheme: Boolean = true, dashboardViewModel: DashboardViewModel = viewModel(factory = DashboardViewModel.Factory), graphViewModel: GlucoseGraphViewModel = viewModel(factory = GlucoseGraphViewModel.Factory), averageViewModel: AverageViewModel = viewModel(factory = AverageViewModel.Factory), a1cViewModel: A1cViewModel = viewModel(factory = A1cViewModel.Factory) )</ID>
+    <ID>LongParameterList:GlucoseGraphRenderer.kt$GlucoseGraphRenderer$( minValue: Double, maxValue: Double, stepValue: Double, targetLow: Double, targetHigh: Double, gridColor: Color, targetColor: Color, valueToY: (Double) -&gt; Float )</ID>
+    <ID>LongParameterList:GlucoseGraphRenderer.kt$GlucoseGraphRenderer$( minValue: Double, maxValue: Double, stepValue: Double, targetLow: Double, targetHigh: Double, textMeasurer: TextMeasurer, labelColor: Color, targetColor: Color, valueToY: (Double) -&gt; Float )</ID>
+    <ID>LongParameterList:GlucoseGraphRenderer.kt$GlucoseGraphRenderer$( timeStart: Long, timeEnd: Long, tickIntervalMs: Long, chartLeftX: Float, dataBottomY: Float, textMeasurer: TextMeasurer, labelColor: Color, formatTime: (Long) -&gt; String )</ID>
     <ID>LongParameterList:GlucoseGraphRenderer.kt$GlucoseGraphRenderer$( x: Float, y: Float, valueLabel: String, timeLabel: String, textMeasurer: TextMeasurer, bgColor: Color, textColor: Color )</ID>
     <ID>MagicNumber:A1cCalculator.kt$A1cCalculator$28.7</ID>
     <ID>MagicNumber:A1cCalculator.kt$A1cCalculator$46.7</ID>
@@ -36,28 +39,31 @@
     <ID>MagicNumber:AppContainer.kt$AppContainer$10</ID>
     <ID>MagicNumber:AppContainer.kt$AppContainer$30</ID>
     <ID>MagicNumber:AverageViewModel.kt$AverageViewModel$5_000</ID>
-    <ID>MagicNumber:Color.kt$0xFF002038</ID>
-    <ID>MagicNumber:Color.kt$0xFF003355</ID>
-    <ID>MagicNumber:Color.kt$0xFF0277BD</ID>
+    <ID>MagicNumber:Color.kt$0xFF002B28</ID>
+    <ID>MagicNumber:Color.kt$0xFF003D36</ID>
+    <ID>MagicNumber:Color.kt$0xFF003F3B</ID>
     <ID>MagicNumber:Color.kt$0xFF059669</ID>
-    <ID>MagicNumber:Color.kt$0xFF060E1A</ID>
-    <ID>MagicNumber:Color.kt$0xFF0A1929</ID>
-    <ID>MagicNumber:Color.kt$0xFF0D1B2E</ID>
-    <ID>MagicNumber:Color.kt$0xFF142843</ID>
+    <ID>MagicNumber:Color.kt$0xFF0F1117</ID>
+    <ID>MagicNumber:Color.kt$0xFF0F172A</ID>
+    <ID>MagicNumber:Color.kt$0xFF0F766E</ID>
+    <ID>MagicNumber:Color.kt$0xFF1A1D2B</ID>
+    <ID>MagicNumber:Color.kt$0xFF22263A</ID>
+    <ID>MagicNumber:Color.kt$0xFF30363D</ID>
     <ID>MagicNumber:Color.kt$0xFF34D399</ID>
-    <ID>MagicNumber:Color.kt$0xFF4A6478</ID>
-    <ID>MagicNumber:Color.kt$0xFF4FC3F7</ID>
-    <ID>MagicNumber:Color.kt$0xFF7B96B8</ID>
-    <ID>MagicNumber:Color.kt$0xFFBDE9FF</ID>
-    <ID>MagicNumber:Color.kt$0xFFD6EAFF</ID>
-    <ID>MagicNumber:Color.kt$0xFFD97706</ID>
+    <ID>MagicNumber:Color.kt$0xFF475569</ID>
+    <ID>MagicNumber:Color.kt$0xFF4ECDC4</ID>
+    <ID>MagicNumber:Color.kt$0xFF94A3B8</ID>
+    <ID>MagicNumber:Color.kt$0xFF99F6E4</ID>
+    <ID>MagicNumber:Color.kt$0xFFA7F3EE</ID>
+    <ID>MagicNumber:Color.kt$0xFFB45309</ID>
+    <ID>MagicNumber:Color.kt$0xFFCBD5E1</ID>
     <ID>MagicNumber:Color.kt$0xFFDC2626</ID>
-    <ID>MagicNumber:Color.kt$0xFFE1EAF6</ID>
-    <ID>MagicNumber:Color.kt$0xFFE4EDF6</ID>
     <ID>MagicNumber:Color.kt$0xFFEA580C</ID>
+    <ID>MagicNumber:Color.kt$0xFFECEEF4</ID>
     <ID>MagicNumber:Color.kt$0xFFEF4444</ID>
-    <ID>MagicNumber:Color.kt$0xFFF0F5FA</ID>
+    <ID>MagicNumber:Color.kt$0xFFF1F5F9</ID>
     <ID>MagicNumber:Color.kt$0xFFF87171</ID>
+    <ID>MagicNumber:Color.kt$0xFFF8FAFC</ID>
     <ID>MagicNumber:Color.kt$0xFFF97316</ID>
     <ID>MagicNumber:Color.kt$0xFFFBBF24</ID>
     <ID>MagicNumber:Color.kt$0xFFFFFFFF</ID>
@@ -69,13 +75,18 @@
     <ID>MagicNumber:DashboardViewModel.kt$DashboardViewModel.Companion$3</ID>
     <ID>MagicNumber:DashboardViewModel.kt$DashboardViewModel.Companion$4</ID>
     <ID>MagicNumber:DashboardViewModel.kt$DashboardViewModel.Companion$5</ID>
+    <ID>MagicNumber:GlucoseGraphCard.kt$0.05</ID>
+    <ID>MagicNumber:GlucoseGraphCard.kt$14.0</ID>
+    <ID>MagicNumber:GlucoseGraphCard.kt$20.0</ID>
     <ID>MagicNumber:GlucoseGraphCard.kt$3</ID>
+    <ID>MagicNumber:GlucoseGraphCard.kt$3_600_000.0</ID>
     <ID>MagicNumber:GlucoseGraphCard.kt$4</ID>
-    <ID>MagicNumber:GlucoseGraphCard.kt$5.0</ID>
-    <ID>MagicNumber:GlucoseGraphCard.kt$50.0</ID>
+    <ID>MagicNumber:GlucoseGraphCard.kt$4.0</ID>
+    <ID>MagicNumber:GlucoseGraphCard.kt$40.0</ID>
+    <ID>MagicNumber:GlucoseGraphCard.kt$60</ID>
+    <ID>MagicNumber:GlucoseGraphCard.kt$60_000L</ID>
     <ID>MagicNumber:GlucoseGraphRenderer.kt$GlucoseGraphRenderer$0.01</ID>
-    <ID>MagicNumber:GlucoseGraphRenderer.kt$GlucoseGraphRenderer$0.05</ID>
-    <ID>MagicNumber:GlucoseGraphRenderer.kt$GlucoseGraphRenderer$0xFF0D1B2E</ID>
+    <ID>MagicNumber:GlucoseGraphRenderer.kt$GlucoseGraphRenderer$0.5</ID>
     <ID>MagicNumber:GlucoseGraphRenderer.kt$GlucoseGraphRenderer$10f</ID>
     <ID>MagicNumber:GlucoseGraphRenderer.kt$GlucoseGraphRenderer$12f</ID>
     <ID>MagicNumber:GlucoseGraphRenderer.kt$GlucoseGraphRenderer$14f</ID>
@@ -95,8 +106,8 @@
     <ID>MaxLineLength:A1cState.kt$A1cState.Ready$data</ID>
     <ID>MaxLineLength:AuthViewModel.kt$AuthViewModel.Companion$val application = (this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as GlucoDashApplication)</ID>
     <ID>MaxLineLength:AverageViewModel.kt$AverageViewModel.Companion$val application = (this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as GlucoDashApplication)</ID>
-    <ID>MaxLineLength:GlucoseGraphCard.kt$fun valueToY(v: Double): Float</ID>
     <ID>MaxLineLength:GlucoseGraphCard.kt$private</ID>
+    <ID>MaxLineLength:GlucoseGraphRenderer.kt$GlucoseGraphRenderer$drawLine(color = labelColor, start = Offset(x, dataBottomY), end = Offset(x, dataBottomY + 4f), strokeWidth = 1f)</ID>
     <ID>MaxLineLength:GlucoseGraphViewModel.kt$GlucoseGraphViewModel.Companion$val application = (this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as GlucoDashApplication)</ID>
     <ID>MaxLineLength:LibreRepository.kt$LibreRepository$private</ID>
     <ID>MaxLineLength:LibreRepository.kt$LibreRepository$val msg = "Region mismatch: server redirected to '$redirectRegion'. Ensure you are using the US/CA endpoint."</ID>
@@ -105,6 +116,7 @@
     <ID>ReturnCount:LibreRepository.kt$LibreRepository$suspend fun login(email: String, pass: String, region: String): Result&lt;Unit&gt;</ID>
     <ID>SwallowedException:LibreRepository.kt$LibreRepository$e: Exception</ID>
     <ID>TooGenericExceptionCaught:LibreRepository.kt$LibreRepository$e: Exception</ID>
+    <ID>TooManyFunctions:AuthManager.kt$AuthManager</ID>
     <ID>WildcardImport:A1cCard.kt$import androidx.compose.foundation.layout.*</ID>
     <ID>WildcardImport:A1cCard.kt$import androidx.compose.material3.*</ID>
     <ID>WildcardImport:AverageCard.kt$import androidx.compose.foundation.layout.*</ID>

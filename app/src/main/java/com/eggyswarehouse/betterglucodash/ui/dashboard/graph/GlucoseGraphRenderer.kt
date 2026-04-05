@@ -15,6 +15,7 @@ import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlin.math.abs
 import kotlin.math.ceil
@@ -47,13 +48,12 @@ object GlucoseGraphRenderer {
     }
 
     /**
-     * Horizontal dashed gridlines at [stepValue] intervals with Y-axis value labels.
+     * Horizontal dashed gridlines at [stepValue] intervals (lines only — no labels).
      *
-     * Target boundary lines are drawn more prominently than generic gridlines.
+     * Labels are drawn separately by [drawYAxisLabels] on the sticky overlay canvas,
+     * so they remain visible while the chart scrolls horizontally.
      *
-     * @param minValue     Axis minimum (mmol/L or mg/dL depending on region).
-     * @param maxValue     Axis maximum.
-     * @param stepValue    Interval between regular gridlines (5 for mmol/L, 50 for mg/dL).
+     * Target boundary lines are drawn more prominently than regular gridlines.
      */
     fun DrawScope.drawGridlines(
         minValue: Double,
@@ -63,24 +63,24 @@ object GlucoseGraphRenderer {
         targetHigh: Double,
         gridColor: Color,
         targetColor: Color,
-        textMeasurer: TextMeasurer,
-        labelColor: Color,
         valueToY: (Double) -> Float
     ) {
-        val labelStyle = TextStyle(fontSize = 9.sp, color = labelColor)
         val dashEffect = { on: Float, off: Float ->
             androidx.compose.ui.graphics.PathEffect
                 .dashPathEffect(floatArrayOf(on, off), 0f)
         }
 
-        // ── Step gridlines (regular 5 mmol / 50 mg/dL intervals) ─────────────
-        // Skip drawing target lines here — they are drawn explicitly below so they
-        // always appear at their exact position (3.9 mmol is NOT on a 5-step boundary).
+        // ── Step gridlines ────────────────────────────────────────────────────
+        // Suppress any step line within half a grid-step of a target boundary so that a
+        // regular dashed line and a target dashed line never visually merge into one blob.
+        // (e.g. step=2 → step 4 is 0.1 mmol from target 3.9 → gridline suppressed;
+        //  the green target line at 3.9 serves as the visual reference instead.)
+        val suppressRadius = stepValue * 0.5
         var level = ceil(minValue / stepValue) * stepValue
         while (level <= maxValue) {
             val y = valueToY(level)
-            val isTarget = abs(level - targetLow) < 0.01 || abs(level - targetHigh) < 0.01
-            if (!isTarget) {
+            val tooClose = abs(level - targetLow) < suppressRadius || abs(level - targetHigh) < suppressRadius
+            if (!tooClose) {
                 drawLine(
                     color = gridColor,
                     start = Offset(0f, y),
@@ -89,15 +89,10 @@ object GlucoseGraphRenderer {
                     pathEffect = dashEffect(8f, 10f)
                 )
             }
-            val labelText = "%.0f".format(level)
-            val measured = textMeasurer.measure(labelText, labelStyle)
-            drawText(textMeasurer, labelText, Offset(4f, y - measured.size.height - 2f), labelStyle)
             level += stepValue
         }
 
-        // ── Target boundary lines — always drawn at their exact values ────────
-        // This guarantees the 3.9 mmol/L low-target line is visible even though
-        // it falls between the 0 and 5 step gridlines.
+        // ── Target boundary lines — exact values ──────────────────────────────
         for (target in listOf(targetLow, targetHigh)) {
             if (target in minValue..maxValue) {
                 val y = valueToY(target)
@@ -108,19 +103,83 @@ object GlucoseGraphRenderer {
                     strokeWidth = 2f,
                     pathEffect = dashEffect(12f, 6f)
                 )
-                // Add a label for targets that don't coincide with a step gridline
-                val onStep = (target % stepValue) < 0.05 || (stepValue - target % stepValue) < 0.05
-                if (!onStep) {
-                    val text = "%.1f".format(target)
-                    val measured = textMeasurer.measure(text, labelStyle)
-                    drawText(
-                        textMeasurer = textMeasurer,
-                        text = text,
-                        topLeft = Offset(4f, y - measured.size.height - 2f),
-                        style = labelStyle.copy(color = targetColor)
-                    )
-                }
             }
+        }
+    }
+
+    /**
+     * Y-axis value labels drawn on the sticky overlay canvas so they don't scroll away.
+     *
+     * Every step label is shown (e.g. 4, 6, 8, 10, 12 mmol/L with step=2).
+     * Labels that coincide with a target boundary are rendered in [targetColor] to match
+     * the green dashed reference line at that position (e.g. "10" when tgtHigh = 10.0).
+     * No extra non-step target labels — the target band and colored lines communicate
+     * the 3.9/70 and 10.0/180 thresholds without additional crowded text.
+     */
+    fun DrawScope.drawYAxisLabels(
+        minValue: Double,
+        maxValue: Double,
+        stepValue: Double,
+        targetLow: Double,
+        targetHigh: Double,
+        textMeasurer: TextMeasurer,
+        labelColor: Color,
+        targetColor: Color,
+        valueToY: (Double) -> Float
+    ) {
+        var level = ceil(minValue / stepValue) * stepValue
+        while (level <= maxValue) {
+            val isExactTarget = abs(level - targetLow) < 0.01 || abs(level - targetHigh) < 0.01
+            val color = if (isExactTarget) targetColor else labelColor
+            val style = TextStyle(fontSize = 9.sp, color = color)
+            val y = valueToY(level)
+            val labelText = "%.0f".format(level)
+            val measured = textMeasurer.measure(labelText, style)
+            drawText(textMeasurer, labelText, Offset(4f, y - measured.size.height - 2f), style)
+            level += stepValue
+        }
+    }
+
+    /**
+     * X-axis hour tick marks and labels along the bottom of the chart.
+     *
+     * Ticks are placed at whole-hour boundaries within [timeStart]..[timeEnd].
+     * The interval between ticks is [tickIntervalMs] (1h / 2h / 4h based on span).
+     *
+     * @param chartLeftX   Left edge of the data area (= LABEL_MARGIN_PX), so ticks align
+     *                     with the chart content rather than the sticky label column.
+     * @param dataBottomY  Y pixel where the data area ends (top of the X-axis strip).
+     * @param formatTime   Converts an epoch-ms timestamp to a display string (e.g. "3 PM").
+     */
+    fun DrawScope.drawXAxisLabels(
+        timeStart: Long,
+        timeEnd: Long,
+        tickIntervalMs: Long,
+        chartLeftX: Float,
+        dataBottomY: Float,
+        textMeasurer: TextMeasurer,
+        labelColor: Color,
+        formatTime: (Long) -> String
+    ) {
+        val labelStyle = TextStyle(fontSize = 9.sp, color = labelColor)
+        val timeSpan = (timeEnd - timeStart).coerceAtLeast(1L)
+        val chartWidth = size.width - chartLeftX
+        val tickY = dataBottomY + 4f
+
+        // Snap first tick to the next whole interval boundary after timeStart
+        val firstTick = ((timeStart / tickIntervalMs) + 1) * tickIntervalMs
+        var tick = firstTick
+        while (tick <= timeEnd) {
+            val xFraction = (tick - timeStart).toFloat() / timeSpan
+            val x = chartLeftX + xFraction * chartWidth
+            // Small tick mark
+            drawLine(color = labelColor, start = Offset(x, dataBottomY), end = Offset(x, dataBottomY + 4f), strokeWidth = 1f)
+            // Label centered on tick
+            val label = formatTime(tick)
+            val measured = textMeasurer.measure(label, labelStyle)
+            val lx = (x - measured.size.width / 2f).coerceIn(chartLeftX, size.width - measured.size.width.toFloat())
+            drawText(textMeasurer, label, Offset(lx, tickY + 2f), labelStyle)
+            tick += tickIntervalMs
         }
     }
 
@@ -128,16 +187,11 @@ object GlucoseGraphRenderer {
      * Smooth cubic Bezier line through [points] with gradient fill and glow halo.
      *
      * Animatable via [progress] (0→1) for the left-to-right entry draw.
-     * A bullseye dot marks the most recent (rightmost) data point.
+     * A solid filled dot with an outer glow halo marks the most recent (rightmost) data point,
+     * matching the Libre 3 app reference visual.
      * No per-point dots — the smooth line is the primary visual element.
      */
-    fun DrawScope.drawGlucoseLine(
-        points: List<Offset>,
-        lineColor: Color,
-        progress: Float = 1f,
-        // Default matches the OLED dark-navy surface colour used inside the chart canvas.
-        surfaceColor: Color = Color(0xFF0D1B2E)
-    ) {
+    fun DrawScope.drawGlucoseLine(points: List<Offset>, lineColor: Color, progress: Float = 1f) {
         if (points.isEmpty()) return
 
         val curvePath = buildBezierPath(points)
@@ -196,10 +250,13 @@ object GlucoseGraphRenderer {
             style = Stroke(width = 10f, cap = StrokeCap.Round, join = StrokeJoin.Round)
         )
 
-        // Bullseye tip dot at latest reading
+        // Solid tip indicator — outer glow halo + filled dot, mirrors Libre 3 reference.
+        // Radii in dp so the dot scales correctly across display densities.
+        val solidRadius = 8.dp.toPx()
+        val glowRadius = 18.dp.toPx()
         val tip = points[visibleCount - 1]
-        drawCircle(color = lineColor, radius = 11f, center = tip)
-        drawCircle(color = surfaceColor, radius = 5f, center = tip)
+        drawCircle(color = lineColor.copy(alpha = 0.22f), radius = glowRadius, center = tip)
+        drawCircle(color = lineColor, radius = solidRadius, center = tip)
     }
 
     /**

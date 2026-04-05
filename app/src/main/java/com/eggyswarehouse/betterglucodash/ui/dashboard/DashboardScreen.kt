@@ -1,5 +1,6 @@
 package com.eggyswarehouse.betterglucodash.ui.dashboard
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.*
@@ -33,6 +34,8 @@ import com.eggyswarehouse.betterglucodash.ui.dashboard.graph.GlucoseGraphViewMod
 @Composable
 fun DashboardScreen(
     onLogout: () -> Unit,
+    onThemeToggle: () -> Unit = {},
+    isDarkTheme: Boolean = true,
     dashboardViewModel: DashboardViewModel = viewModel(factory = DashboardViewModel.Factory),
     graphViewModel: GlucoseGraphViewModel = viewModel(factory = GlucoseGraphViewModel.Factory),
     averageViewModel: AverageViewModel = viewModel(factory = AverageViewModel.Factory),
@@ -93,27 +96,32 @@ fun DashboardScreen(
                 )
             }
 
-            // ── 3. Last 24h Average ───────────────────────────────────────────
-            item { AverageCard(state = avgState) }
-
-            // ── 4. Estimated A1C ──────────────────────────────────────────────
-            item { A1cCard(state = a1cState) }
+            // ── 3 & 4. Last 24h Average + Estimated A1C — side-by-side squares ──
+            item {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    AverageCard(state = avgState, modifier = Modifier.weight(1f))
+                    A1cCard(state = a1cState, modifier = Modifier.weight(1f))
+                }
+            }
 
             // ── 5. Logout & Database Actions ──────────────────────────────────
             item {
                 Spacer(Modifier.height(16.dp))
 
-                // Clear Local Data - Wipes DB but keeps user logged in
-                TextButton(
-                    onClick = { dashboardViewModel.clearDatabase() },
+                OutlinedButton(
+                    onClick = onThemeToggle,
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 32.dp),
-                    colors =
-                    ButtonDefaults.textButtonColors(
-                        contentColor = MaterialTheme.colorScheme.error.copy(alpha = 0.7f)
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                ) { Text("Clear Local Data") }
+                ) { Text(if (isDarkTheme) "Switch to Light Mode" else "Switch to Dark Mode") }
 
-                Spacer(Modifier.height(4.dp))
+                Spacer(Modifier.height(8.dp))
 
                 // Logout - Clears auth but keeps DB (until next user logs in)
                 OutlinedButton(
@@ -127,6 +135,19 @@ fun DashboardScreen(
                         contentColor = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 ) { Text("Logout") }
+
+                Spacer(Modifier.height(8.dp))
+
+                // Clear Local Data - Wipes DB but keeps user logged in
+                OutlinedButton(
+                    onClick = { dashboardViewModel.clearDatabase() },
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 32.dp),
+                    colors =
+                    ButtonDefaults.outlinedButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error
+                    ),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.5f))
+                ) { Text("Clear Local Data") }
             }
 
             // ── 6. Disclaimer ─────────────────────────────────────────────────

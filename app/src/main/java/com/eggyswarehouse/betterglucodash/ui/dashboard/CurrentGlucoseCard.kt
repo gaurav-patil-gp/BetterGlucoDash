@@ -84,7 +84,8 @@ fun CurrentGlucoseCard(state: DashboardUiState, modifier: Modifier = Modifier) {
         modifier =
         modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .height(180.dp),
         shape = MaterialTheme.shapes.extraLarge,
         // Same containerColor as every other dashboard card — consistent surface
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
@@ -94,15 +95,17 @@ fun CurrentGlucoseCard(state: DashboardUiState, modifier: Modifier = Modifier) {
             modifier =
             Modifier
                 .fillMaxWidth()
+                .fillMaxHeight()
                 .padding(horizontal = 20.dp, vertical = 18.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
         ) {
             // ── Card title ────────────────────────────────────────────────────
             Text(
                 text = "Current Glucose",
-                style = MaterialTheme.typography.titleSmall,
+                style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = MaterialTheme.colorScheme.primary,
                 textAlign = TextAlign.Center
             )
 

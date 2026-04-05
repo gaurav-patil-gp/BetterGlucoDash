@@ -2,6 +2,7 @@ package com.eggyswarehouse.betterglucodash.data.local
 
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.flow.Flow
@@ -30,6 +31,7 @@ class AuthManager(private val dataStore: DataStore<Preferences>) {
         private val PATIENT_ID = stringPreferencesKey("patient_id")
         private val REGION = stringPreferencesKey("region") // "US" or "CA"
         private val ACCOUNT_ID = stringPreferencesKey("account_id") // SHA-256(userId)
+        private val THEME_IS_DARK = booleanPreferencesKey("theme_is_dark")
     }
 
     /** In-memory cache of the JWT. Populated by [warmCache]; updated on every [saveToken]. */
@@ -50,6 +52,13 @@ class AuthManager(private val dataStore: DataStore<Preferences>) {
      * and [AverageViewModel][com.eggyswarehouse.betterglucodash.ui.dashboard.average.AverageViewModel].
      */
     val regionFlow: Flow<String?> = dataStore.data.map { it[REGION] }
+
+    /** Cold-start default: dark. Persisted across restarts. */
+    val themeIsDarkFlow: Flow<Boolean> = dataStore.data.map { it[THEME_IS_DARK] ?: true }
+
+    suspend fun setThemeIsDark(isDark: Boolean) {
+        dataStore.edit { it[THEME_IS_DARK] = isDark }
+    }
 
     /**
      * Reads all cached fields from DataStore in a single pass.
