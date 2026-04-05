@@ -1,8 +1,8 @@
 package com.eggyswarehouse.betterglucodash.ui.dashboard.average
 
 import com.eggyswarehouse.betterglucodash.data.local.db.GlucoseReadingEntity
-import java.util.Calendar
-import java.util.TimeZone
+import java.time.Instant
+import java.time.temporal.ChronoUnit
 
 /**
  * Computes the rolling 24-hour glucose average using an hourly-coverage model.
@@ -27,7 +27,6 @@ import java.util.TimeZone
  * Has no Android framework dependencies — fully unit-testable in plain JVM tests.
  */
 object AverageCalculator {
-
     // ── Constants ─────────────────────────────────────────────────────────────
 
     /** Total hours in the coverage window. */
@@ -45,8 +44,8 @@ object AverageCalculator {
      */
     private const val MAX_GAP_MS = 2L * 60 * 60 * 1_000
 
-    /** IFCC-aligned mg/dL → mmol/L conversion factor. */
-    private const val MGDL_TO_MMOL = 18.01559
+    /** IFCC-aligned mg/dL → mmol/L conversion divisor. */
+    private const val MMOL_DIVISOR = 18.01559
 
     // ── Public API ────────────────────────────────────────────────────────────
 
@@ -54,10 +53,10 @@ object AverageCalculator {
      * Evaluates [readings] (already filtered to the last 24h) and returns
      * the appropriate [AverageState].
      *
-     * @param readings   All entities from the past 24h, in any order.
-     * @param isCanada   True when the user's region is "CA" (display in mmol/L).
+     * @param readings  All entities from the past 24h, in any order.
+     * @param isMetric  True when the user's region uses mmol/L (e.g. CA).
      */
-    fun compute(readings: List<GlucoseReadingEntity>, isCanada: Boolean): AverageState {
+    fun compute(readings: List<GlucoseReadingEntity>, isMetric: Boolean): AverageState {
         if (readings.isEmpty()) return AverageState.InsufficientData(hoursWithData = 0)
 
         val sorted = readings.sortedBy { it.timestampUtc }
@@ -70,16 +69,15 @@ object AverageCalculator {
         }
 
         // ── Hourly-bucket coverage ─────────────────────────────────────────────
-        // Map each reading to a "YYYY-MM-DD-HH" UTC key so distinct hours are counted.
-        val utcCal = Calendar.getInstance(TimeZone.getTimeZone("UTC"))
-        val coveredHourKeys = sorted.map { entity ->
-            utcCal.timeInMillis = entity.timestampUtc
-            val y  = utcCal.get(Calendar.YEAR)
-            val mo = utcCal.get(Calendar.MONTH)
-            val d  = utcCal.get(Calendar.DAY_OF_MONTH)
-            val h  = utcCal.get(Calendar.HOUR_OF_DAY)
-            "$y-$mo-$d-$h"
-        }.toSet()
+        // Truncate each reading's timestamp to the hour boundary (immutable, thread-safe).
+        val coveredHourKeys =
+            sorted
+                .map { entity ->
+                    Instant
+                        .ofEpochMilli(entity.timestampUtc)
+                        .truncatedTo(ChronoUnit.HOURS)
+                        .toString() // ISO-8601 string unique per UTC hour
+                }.toSet()
 
         val hoursWithData = coveredHourKeys.size.coerceAtMost(TOTAL_HOURS)
 
@@ -88,15 +86,15 @@ object AverageCalculator {
         }
 
         // ── Compute average ────────────────────────────────────────────────────
-        val avgMgDl  = sorted.sumOf { it.valueMgDl.toLong() }.toDouble() / sorted.size
-        val display  = if (isCanada) avgMgDl / MGDL_TO_MMOL else avgMgDl
+        val avgMgDl = sorted.sumOf { it.valueMgDl.toLong() }.toDouble() / sorted.size
+        val display = if (isMetric) avgMgDl / MMOL_DIVISOR else avgMgDl
 
         return AverageState.Ready(
-            averageMgDl    = avgMgDl,
+            averageMgDl = avgMgDl,
             displayAverage = display,
-            hoursWithData  = hoursWithData,
-            isApproximate  = hoursWithData < TOTAL_HOURS,
-            isMmol         = isCanada
+            hoursWithData = hoursWithData,
+            isApproximate = hoursWithData < TOTAL_HOURS,
+            isMmol = isMetric
         )
     }
 }

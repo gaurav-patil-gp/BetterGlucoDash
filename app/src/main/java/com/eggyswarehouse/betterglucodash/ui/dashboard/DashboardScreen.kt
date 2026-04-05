@@ -33,15 +33,15 @@ import com.eggyswarehouse.betterglucodash.ui.dashboard.graph.GlucoseGraphViewMod
 @Composable
 fun DashboardScreen(
     onLogout: () -> Unit,
-    dashboardViewModel: DashboardViewModel    = viewModel(factory = DashboardViewModel.Factory),
-    graphViewModel:     GlucoseGraphViewModel = viewModel(factory = GlucoseGraphViewModel.Factory),
-    averageViewModel:   AverageViewModel      = viewModel(factory = AverageViewModel.Factory),
-    a1cViewModel:       A1cViewModel          = viewModel(factory = A1cViewModel.Factory)
+    dashboardViewModel: DashboardViewModel = viewModel(factory = DashboardViewModel.Factory),
+    graphViewModel: GlucoseGraphViewModel = viewModel(factory = GlucoseGraphViewModel.Factory),
+    averageViewModel: AverageViewModel = viewModel(factory = AverageViewModel.Factory),
+    a1cViewModel: A1cViewModel = viewModel(factory = A1cViewModel.Factory)
 ) {
-    val uiState    by dashboardViewModel.uiState.collectAsStateWithLifecycle()
+    val uiState by dashboardViewModel.uiState.collectAsStateWithLifecycle()
     val graphState by graphViewModel.uiState.collectAsStateWithLifecycle()
-    val avgState   by averageViewModel.uiState.collectAsStateWithLifecycle()
-    val a1cState   by a1cViewModel.uiState.collectAsStateWithLifecycle()
+    val avgState by averageViewModel.uiState.collectAsStateWithLifecycle()
+    val a1cState by a1cViewModel.uiState.collectAsStateWithLifecycle()
 
     // Auto-logout on JWT expiry
     LaunchedEffect(uiState.isSessionExpired) {
@@ -54,8 +54,9 @@ fun DashboardScreen(
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title  = { Text("Dashboard", style = MaterialTheme.typography.titleLarge) },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                title = { Text("Dashboard", style = MaterialTheme.typography.titleLarge) },
+                colors =
+                TopAppBarDefaults.centerAlignedTopAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background
                 )
             )
@@ -63,22 +64,22 @@ fun DashboardScreen(
         containerColor = MaterialTheme.colorScheme.background
     ) { paddingValues ->
         LazyColumn(
-            modifier            = Modifier.fillMaxSize().padding(paddingValues),
+            modifier = Modifier.fillMaxSize().padding(paddingValues),
             horizontalAlignment = Alignment.CenterHorizontally,
-            contentPadding      = PaddingValues(bottom = 24.dp)
+            contentPadding = PaddingValues(bottom = 24.dp)
         ) {
             // ── 1. Current Glucose ────────────────────────────────────────────
             item { CurrentGlucoseCard(state = uiState) }
 
-            // Error banner — shown only during initial load before any data
-            if (uiState.error != null && uiState.isLoading) {
+            // Error banner — shown after the first load attempt fails (not while loading)
+            if (uiState.error != null && !uiState.isLoading) {
                 item {
                     Text(
-                        text      = "⚠️ ${uiState.error}",
-                        color     = MaterialTheme.colorScheme.error,
-                        modifier  = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                        text = "⚠️ ${uiState.error}",
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                         textAlign = TextAlign.Center,
-                        style     = MaterialTheme.typography.bodyMedium
+                        style = MaterialTheme.typography.bodyMedium
                     )
                 }
             }
@@ -86,8 +87,8 @@ fun DashboardScreen(
             // ── 2. Glucose Trend ──────────────────────────────────────────────
             item {
                 GlucoseGraphCard(
-                    state            = graphState,
-                    onRangeSelected  = graphViewModel::selectRange,
+                    state = graphState,
+                    onRangeSelected = graphViewModel::selectRange,
                     onCrosshairMoved = graphViewModel::updateCrosshair
                 )
             }
@@ -101,12 +102,13 @@ fun DashboardScreen(
             // ── 5. Logout & Database Actions ──────────────────────────────────
             item {
                 Spacer(Modifier.height(16.dp))
-                
+
                 // Clear Local Data - Wipes DB but keeps user logged in
                 TextButton(
-                    onClick  = { dashboardViewModel.clearDatabase() },
+                    onClick = { dashboardViewModel.clearDatabase() },
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 32.dp),
-                    colors   = ButtonDefaults.textButtonColors(
+                    colors =
+                    ButtonDefaults.textButtonColors(
                         contentColor = MaterialTheme.colorScheme.error.copy(alpha = 0.7f)
                     )
                 ) { Text("Clear Local Data") }
@@ -115,9 +117,13 @@ fun DashboardScreen(
 
                 // Logout - Clears auth but keeps DB (until next user logs in)
                 OutlinedButton(
-                    onClick  = { dashboardViewModel.logout(); onLogout() },
+                    onClick = {
+                        dashboardViewModel.logout()
+                        onLogout()
+                    },
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 32.dp),
-                    colors   = ButtonDefaults.outlinedButtonColors(
+                    colors =
+                    ButtonDefaults.outlinedButtonColors(
                         contentColor = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 ) { Text("Logout") }
@@ -126,11 +132,14 @@ fun DashboardScreen(
             // ── 6. Disclaimer ─────────────────────────────────────────────────
             item {
                 Text(
-                    text      = "Not for medical decisions. Supplemental analytics only.",
-                    style     = MaterialTheme.typography.labelSmall,
-                    color     = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f),
+                    text = "Not for medical decisions. Supplemental analytics only.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f),
                     textAlign = TextAlign.Center,
-                    modifier  = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 12.dp)
+                    modifier = Modifier.fillMaxWidth().padding(
+                        horizontal = 24.dp,
+                        vertical = 12.dp
+                    )
                 )
             }
         }

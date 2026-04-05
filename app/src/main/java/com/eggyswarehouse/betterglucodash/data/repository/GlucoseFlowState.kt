@@ -6,7 +6,7 @@ import com.eggyswarehouse.betterglucodash.data.network.GlucoseMeasurement
  * Represents the state of the live glucose polling flow.
  *
  * Collectors (e.g. [com.eggyswarehouse.betterglucodash.ui.dashboard.DashboardViewModel])
- * should handle all three states:
+ * should handle all four states:
  *  - [Loading]        — Initial state before the first successful poll.
  *  - [Success]        — A fresh reading was retrieved from the Abbott API.
  *  - [Error]          — A recoverable network error occurred; previous reading remains valid.
@@ -14,7 +14,7 @@ import com.eggyswarehouse.betterglucodash.data.network.GlucoseMeasurement
  */
 sealed class GlucoseFlowState {
     /** Waiting for the first reading after login. */
-    object Loading : GlucoseFlowState()
+    data object Loading : GlucoseFlowState()
 
     /** A valid glucose reading is available. */
     data class Success(val measurement: GlucoseMeasurement) : GlucoseFlowState()
@@ -29,5 +29,5 @@ sealed class GlucoseFlowState {
      * Abbott API returned HTTP 401 — the JWT has expired or been invalidated.
      * The UI must navigate back to the Login screen immediately.
      */
-    object SessionExpired : GlucoseFlowState()
+    data object SessionExpired : GlucoseFlowState()
 }

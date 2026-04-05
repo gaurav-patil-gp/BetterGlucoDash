@@ -1,0 +1,28 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+indent_size = 4
+indent_style = space
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.{kt,kts}]
+# Android Kotlin Style Guide
+ktlint_code_style = android_studio
+max_line_length = 140
+
+# Allow PascalCase for @Composable functions (Compose component naming convention)
+ktlint_function_naming_ignore_when_annotated_with = Composable
+
+# Allow _foo backing properties without a matching public foo property.
+# ViewModels legitimately expose multiple private flows through a single combined StateFlow.
+ktlint_standard_backing-property-naming = disabled
+
+# Allow wildcard imports from common Compose packages (mirrors Android Studio's default
+# "Use import on demand" threshold for these high-symbol-density packages)
+ij_kotlin_packages_to_use_import_on_demand = androidx.compose.foundation.layout,androidx.compose.material3,androidx.compose.runtime,androidx.compose.foundation
+
+[*.md]
+trim_trailing_whitespace = false

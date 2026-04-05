@@ -17,6 +17,7 @@ import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import kotlin.math.abs
+import kotlin.math.ceil
 import kotlin.math.max
 
 /**
@@ -32,7 +33,6 @@ import kotlin.math.max
  *  - The glow halo uses a wider spread (24f) for richness on dark backgrounds.
  */
 object GlucoseGraphRenderer {
-
     // ── Public drawing functions ──────────────────────────────────────────────
 
     /**
@@ -40,79 +40,84 @@ object GlucoseGraphRenderer {
      */
     fun DrawScope.drawTargetBand(lowY: Float, highY: Float, bandColor: Color) {
         drawRect(
-            color   = bandColor,
+            color = bandColor,
             topLeft = Offset(0f, highY),
-            size    = Size(size.width, lowY - highY)
+            size = Size(size.width, lowY - highY)
         )
     }
 
     /**
-     * Horizontal dashed gridlines at [stepMmol] intervals with Y-axis value labels.
+     * Horizontal dashed gridlines at [stepValue] intervals with Y-axis value labels.
      *
      * Target boundary lines are drawn more prominently than generic gridlines.
+     *
+     * @param minValue     Axis minimum (mmol/L or mg/dL depending on region).
+     * @param maxValue     Axis maximum.
+     * @param stepValue    Interval between regular gridlines (5 for mmol/L, 50 for mg/dL).
      */
     fun DrawScope.drawGridlines(
-        minMmol:      Double,
-        maxMmol:      Double,
-        stepMmol:     Double,
-        targetLow:    Double,
-        targetHigh:   Double,
-        gridColor:    Color,
-        targetColor:  Color,
+        minValue: Double,
+        maxValue: Double,
+        stepValue: Double,
+        targetLow: Double,
+        targetHigh: Double,
+        gridColor: Color,
+        targetColor: Color,
         textMeasurer: TextMeasurer,
-        labelColor:   Color,
-        valueToY:     (Double) -> Float
+        labelColor: Color,
+        valueToY: (Double) -> Float
     ) {
         val labelStyle = TextStyle(fontSize = 9.sp, color = labelColor)
         val dashEffect = { on: Float, off: Float ->
-            androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(on, off), 0f)
+            androidx.compose.ui.graphics.PathEffect
+                .dashPathEffect(floatArrayOf(on, off), 0f)
         }
 
         // ── Step gridlines (regular 5 mmol / 50 mg/dL intervals) ─────────────
         // Skip drawing target lines here — they are drawn explicitly below so they
         // always appear at their exact position (3.9 mmol is NOT on a 5-step boundary).
-        var level = Math.ceil(minMmol / stepMmol) * stepMmol
-        while (level <= maxMmol) {
-            val y        = valueToY(level)
+        var level = ceil(minValue / stepValue) * stepValue
+        while (level <= maxValue) {
+            val y = valueToY(level)
             val isTarget = abs(level - targetLow) < 0.01 || abs(level - targetHigh) < 0.01
             if (!isTarget) {
                 drawLine(
-                    color       = gridColor,
-                    start       = Offset(0f, y),
-                    end         = Offset(size.width, y),
+                    color = gridColor,
+                    start = Offset(0f, y),
+                    end = Offset(size.width, y),
                     strokeWidth = 1f,
-                    pathEffect  = dashEffect(8f, 10f)
+                    pathEffect = dashEffect(8f, 10f)
                 )
             }
             val labelText = "%.0f".format(level)
-            val measured  = textMeasurer.measure(labelText, labelStyle)
+            val measured = textMeasurer.measure(labelText, labelStyle)
             drawText(textMeasurer, labelText, Offset(4f, y - measured.size.height - 2f), labelStyle)
-            level += stepMmol
+            level += stepValue
         }
 
         // ── Target boundary lines — always drawn at their exact values ────────
         // This guarantees the 3.9 mmol/L low-target line is visible even though
         // it falls between the 0 and 5 step gridlines.
         for (target in listOf(targetLow, targetHigh)) {
-            if (target in minMmol..maxMmol) {
+            if (target in minValue..maxValue) {
                 val y = valueToY(target)
                 drawLine(
-                    color       = targetColor,
-                    start       = Offset(0f, y),
-                    end         = Offset(size.width, y),
+                    color = targetColor,
+                    start = Offset(0f, y),
+                    end = Offset(size.width, y),
                     strokeWidth = 2f,
-                    pathEffect  = dashEffect(12f, 6f)
+                    pathEffect = dashEffect(12f, 6f)
                 )
                 // Add a label for targets that don't coincide with a step gridline
-                val onStep = (target % stepMmol) < 0.05 || (stepMmol - target % stepMmol) < 0.05
+                val onStep = (target % stepValue) < 0.05 || (stepValue - target % stepValue) < 0.05
                 if (!onStep) {
-                    val text     = "%.1f".format(target)
+                    val text = "%.1f".format(target)
                     val measured = textMeasurer.measure(text, labelStyle)
                     drawText(
                         textMeasurer = textMeasurer,
-                        text         = text,
-                        topLeft      = Offset(4f, y - measured.size.height - 2f),
-                        style        = labelStyle.copy(color = targetColor)
+                        text = text,
+                        topLeft = Offset(4f, y - measured.size.height - 2f),
+                        style = labelStyle.copy(color = targetColor)
                     )
                 }
             }
@@ -127,63 +132,74 @@ object GlucoseGraphRenderer {
      * No per-point dots — the smooth line is the primary visual element.
      */
     fun DrawScope.drawGlucoseLine(
-        points:    List<Offset>,
+        points: List<Offset>,
         lineColor: Color,
-        progress:  Float = 1f,
-        surfaceColor: Color = Color(0xFF0D1B2E) // default to dark navy for inner dot
+        progress: Float = 1f,
+        // Default matches the OLED dark-navy surface colour used inside the chart canvas.
+        surfaceColor: Color = Color(0xFF0D1B2E)
     ) {
         if (points.isEmpty()) return
 
         val curvePath = buildBezierPath(points)
 
-        val visiblePath = if (progress < 1f) {
-            val measure = PathMeasure()
-            measure.setPath(curvePath, false)
-            Path().also { measure.getSegment(0f, measure.length * progress, it, true) }
-        } else {
-            curvePath
-        }
+        val visiblePath =
+            if (progress < 1f) {
+                val measure = PathMeasure()
+                measure.setPath(curvePath, false)
+                Path().also { measure.getSegment(0f, measure.length * progress, it, true) }
+            } else {
+                curvePath
+            }
 
         val visibleCount = (points.size * progress).toInt().coerceIn(1, points.size)
 
         // Gradient area fill
-        val fillPath = Path().apply {
-            moveTo(points.first().x, size.height)
-            lineTo(points.first().x, points.first().y)
-            for (i in 0 until visibleCount - 1) {
-                val ctrl = (points[i].x + points[i + 1].x) / 2f
-                cubicTo(ctrl, points[i].y, ctrl, points[i + 1].y, points[i + 1].x, points[i + 1].y)
+        val fillPath =
+            Path().apply {
+                moveTo(points.first().x, size.height)
+                lineTo(points.first().x, points.first().y)
+                for (i in 0 until visibleCount - 1) {
+                    val ctrl = (points[i].x + points[i + 1].x) / 2f
+                    cubicTo(
+                        ctrl,
+                        points[i].y,
+                        ctrl,
+                        points[i + 1].y,
+                        points[i + 1].x,
+                        points[i + 1].y
+                    )
+                }
+                lineTo(points[visibleCount - 1].x, size.height)
+                close()
             }
-            lineTo(points[visibleCount - 1].x, size.height)
-            close()
-        }
         drawPath(
-            path  = fillPath,
-            brush = Brush.verticalGradient(
+            path = fillPath,
+            brush =
+            Brush.verticalGradient(
                 colors = listOf(lineColor.copy(alpha = 0.35f), lineColor.copy(alpha = 0f)),
                 startY = 0f,
-                endY   = size.height
+                endY = size.height
             )
         )
 
         // Glow halo — wider on dark backgrounds for visual richness
         drawPath(
-            path  = visiblePath,
+            path = visiblePath,
             color = lineColor.copy(alpha = 0.20f),
             style = Stroke(width = 24f, cap = StrokeCap.Round, join = StrokeJoin.Round)
         )
 
         // Main line — 10f for visual weight on dark substrate
         drawPath(
-            path  = visiblePath,
+            path = visiblePath,
             color = lineColor,
             style = Stroke(width = 10f, cap = StrokeCap.Round, join = StrokeJoin.Round)
         )
 
         // Bullseye tip dot at latest reading
         val tip = points[visibleCount - 1]
-        drawCircle(color = lineColor,   radius = 11f, center = tip)
-        drawCircle(color = surfaceColor, radius = 5f,  center = tip)
+        drawCircle(color = lineColor, radius = 11f, center = tip)
+        drawCircle(color = surfaceColor, radius = 5f, center = tip)
     }
 
     /**
@@ -191,12 +207,14 @@ object GlucoseGraphRenderer {
      */
     fun DrawScope.drawCrosshair(x: Float, color: Color) {
         drawLine(
-            color       = color,
-            start       = Offset(x, 0f),
-            end         = Offset(x, size.height),
+            color = color,
+            start = Offset(x, 0f),
+            end = Offset(x, size.height),
             strokeWidth = 2f,
-            pathEffect  = androidx.compose.ui.graphics.PathEffect.dashPathEffect(
-                floatArrayOf(12f, 8f), 0f
+            pathEffect =
+            androidx.compose.ui.graphics.PathEffect.dashPathEffect(
+                floatArrayOf(12f, 8f),
+                0f
             )
         )
     }
@@ -210,22 +228,24 @@ object GlucoseGraphRenderer {
      * The tooltip is clamped to the canvas bounds so it never clips off-screen.
      */
     fun DrawScope.drawTooltip(
-        x:            Float,
-        y:            Float,
-        valueLabel:   String,
-        timeLabel:    String,
+        x: Float,
+        y: Float,
+        valueLabel: String,
+        timeLabel: String,
         textMeasurer: TextMeasurer,
-        bgColor:      Color,
-        textColor:    Color
+        bgColor: Color,
+        textColor: Color
     ) {
-        val valueMeasured = textMeasurer.measure(
-            valueLabel,
-            TextStyle(fontSize = 15.sp, fontWeight = FontWeight.Bold, color = textColor)
-        )
-        val timeMeasured = textMeasurer.measure(
-            timeLabel,
-            TextStyle(fontSize = 10.sp, color = textColor.copy(alpha = 0.65f))
-        )
+        val valueMeasured =
+            textMeasurer.measure(
+                valueLabel,
+                TextStyle(fontSize = 15.sp, fontWeight = FontWeight.Bold, color = textColor)
+            )
+        val timeMeasured =
+            textMeasurer.measure(
+                timeLabel,
+                TextStyle(fontSize = 10.sp, color = textColor.copy(alpha = 0.65f))
+            )
 
         val padH = 14f
         val padV = 10f
@@ -241,22 +261,22 @@ object GlucoseGraphRenderer {
         ty = ty.coerceAtLeast(4f)
 
         drawRoundRect(
-            color        = bgColor,
-            topLeft      = Offset(tx, ty),
-            size         = Size(tooltipW, tooltipH),
+            color = bgColor,
+            topLeft = Offset(tx, ty),
+            size = Size(tooltipW, tooltipH),
             cornerRadius = CornerRadius(10f)
         )
         drawText(
             textMeasurer = textMeasurer,
-            text         = valueLabel,
-            topLeft      = Offset(tx + padH, ty + padV),
-            style        = TextStyle(fontSize = 15.sp, fontWeight = FontWeight.Bold, color = textColor)
+            text = valueLabel,
+            topLeft = Offset(tx + padH, ty + padV),
+            style = TextStyle(fontSize = 15.sp, fontWeight = FontWeight.Bold, color = textColor)
         )
         drawText(
             textMeasurer = textMeasurer,
-            text         = timeLabel,
-            topLeft      = Offset(tx + padH, ty + padV + valueMeasured.size.height + 4f),
-            style        = TextStyle(fontSize = 10.sp, color = textColor.copy(alpha = 0.65f))
+            text = timeLabel,
+            topLeft = Offset(tx + padH, ty + padV + valueMeasured.size.height + 4f),
+            style = TextStyle(fontSize = 10.sp, color = textColor.copy(alpha = 0.65f))
         )
     }
 

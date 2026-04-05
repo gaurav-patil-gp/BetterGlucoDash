@@ -5,21 +5,25 @@ import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.preferencesDataStoreFile
 import com.eggyswarehouse.betterglucodash.BuildConfig
 import com.eggyswarehouse.betterglucodash.data.local.AuthManager
+import com.eggyswarehouse.betterglucodash.data.local.db.GlucoseDao
+import com.eggyswarehouse.betterglucodash.data.local.db.GlucoseDatabase
 import com.eggyswarehouse.betterglucodash.data.network.AuthInterceptor
 import com.eggyswarehouse.betterglucodash.data.network.BaseUrlHolder
 import com.eggyswarehouse.betterglucodash.data.network.LibreApiService
-import com.eggyswarehouse.betterglucodash.data.network.LLU_HOSTS
+import com.eggyswarehouse.betterglucodash.data.network.Region
 import com.eggyswarehouse.betterglucodash.data.network.RegionInterceptor
 import com.eggyswarehouse.betterglucodash.data.repository.LibreRepository
-import com.eggyswarehouse.betterglucodash.data.local.db.GlucoseDatabase
-import com.eggyswarehouse.betterglucodash.data.local.db.GlucoseDao
+import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
-import java.util.concurrent.TimeUnit
 
 /**
  * Manual dependency injection container for BetterGlucoDash.
@@ -33,7 +37,7 @@ import java.util.concurrent.TimeUnit
  *  ├── AuthManager (DataStore)
  *  ├── BaseUrlHolder
  *  ├── RegionInterceptor(BaseUrlHolder)   ← rewrites host per-request
- *  ├── AuthInterceptor(AuthManager)       ← injects Bearer + account-id
+ *  ├── AuthInterceptor(AuthManager)       ← injects Bearer + account-id (reads @Volatile cache)
  *  ├── OkHttpClient(Region, Auth, Logger)
  *  ├── Retrofit(OkHttpClient)
  *  ├── LibreApiService(Retrofit)
@@ -44,12 +48,23 @@ import java.util.concurrent.TimeUnit
  * the host at request time based on [BaseUrlHolder.host].
  */
 class AppContainer(private val context: Context) {
+    /** App-scoped coroutine scope for warm-up and background tasks. */
+    private val appScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     val authManager: AuthManager by lazy {
-        val dataStore = PreferenceDataStoreFactory.create(
-            produceFile = { context.preferencesDataStoreFile("better_gluco_dash_prefs") }
-        )
-        AuthManager(dataStore)
+        val dataStore =
+            PreferenceDataStoreFactory.create(
+                produceFile = { context.preferencesDataStoreFile("better_gluco_dash_prefs") }
+            )
+        AuthManager(dataStore).also { mgr ->
+            // Warm the @Volatile token/accountId caches so AuthInterceptor can read them
+            // synchronously on OkHttp's I/O thread without any runBlocking calls.
+            // Also restore the regional host so CA users poll the correct endpoint after restart.
+            appScope.launch {
+                mgr.warmCache()
+                baseUrlHolder.host = Region.fromCode(mgr.cachedRegion).apiHost
+            }
+        }
     }
 
     /**
@@ -61,17 +76,19 @@ class AppContainer(private val context: Context) {
     private val authInterceptor by lazy { AuthInterceptor(authManager) }
 
     val glucoseDatabase: GlucoseDatabase by lazy { GlucoseDatabase.getDatabase(context) }
-    val glucoseDao: GlucoseDao by lazy { glucoseDatabase.glucoseDao() }
+    private val glucoseDao: GlucoseDao by lazy { glucoseDatabase.glucoseDao() }
 
     private val regionInterceptor by lazy { RegionInterceptor(baseUrlHolder) }
 
-    private val json = Json {
-        ignoreUnknownKeys = true
-        coerceInputValues = true
-    }
+    private val json =
+        Json {
+            ignoreUnknownKeys = true
+            coerceInputValues = true
+        }
 
     private val okHttpClient: OkHttpClient by lazy {
-        OkHttpClient.Builder()
+        OkHttpClient
+            .Builder()
             .connectTimeout(10, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .addInterceptor(regionInterceptor) // Must be first — rewrites host before auth headers are added
@@ -81,17 +98,19 @@ class AppContainer(private val context: Context) {
                 // In release builds this is NONE to prevent JWT tokens appearing in logcat.
                 if (BuildConfig.DEBUG) {
                     addInterceptor(
-                        HttpLoggingInterceptor().apply { level = HttpLoggingInterceptor.Level.BODY }
+                        HttpLoggingInterceptor().apply {
+                            level = HttpLoggingInterceptor.Level.BODY
+                        }
                     )
                 }
-            }
-            .build()
+            }.build()
     }
 
     private val retrofit: Retrofit by lazy {
-        Retrofit.Builder()
+        Retrofit
+            .Builder()
             // Placeholder host — RegionInterceptor overwrites this at request time.
-            .baseUrl("https://${LLU_HOSTS.US}/")
+            .baseUrl("https://${Region.US.apiHost}/")
             .client(okHttpClient)
             .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
             .build()

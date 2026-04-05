@@ -14,6 +14,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 
+// TODO(V3): track when these M3 Expressive APIs stabilize
 /**
  * "Estimated A1C" card — same dimensions and visual style as the other dashboard stat cards.
  *
@@ -22,23 +23,25 @@ import androidx.compose.ui.unit.dp
  *
  * Layout (centered, top → bottom):
  *  - Bold title: "Estimated A1C"
- *  - [A1cState.InsufficientData]: "45/60 days" data progress
+ *  - [A1cState.InsufficientData]: "X/90 days" data progress
  *  - [A1cState.Ready]:            animated "%", formula note, data coverage
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun A1cCard(state: A1cState, modifier: Modifier = Modifier) {
     Card(
-        modifier  = modifier
+        modifier =
+        modifier
             .fillMaxWidth()
             .heightIn(min = 140.dp)
             .padding(horizontal = 16.dp, vertical = 8.dp),
-        shape     = MaterialTheme.shapes.extraLarge,
-        colors    = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        shape = MaterialTheme.shapes.extraLarge,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(
-            modifier            = Modifier
+            modifier =
+            Modifier
                 .fillMaxWidth()
                 .fillMaxHeight()
                 .padding(horizontal = 20.dp, vertical = 18.dp),
@@ -47,11 +50,11 @@ fun A1cCard(state: A1cState, modifier: Modifier = Modifier) {
         ) {
             // ── Title ─────────────────────────────────────────────────────────
             Text(
-                text       = "Estimated A1C",
-                style      = MaterialTheme.typography.titleSmall,
+                text = "Estimated A1C",
+                style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold,
-                color      = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign  = TextAlign.Center
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
             )
 
             Spacer(Modifier.height(12.dp))
@@ -59,38 +62,40 @@ fun A1cCard(state: A1cState, modifier: Modifier = Modifier) {
             AnimatedContent(targetState = state, label = "A1cCardContent") { s ->
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier            = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     when (s) {
                         // ── Calculating ─────────────────────────────────────────
                         A1cState.Calculating -> {
                             CircularWavyProgressIndicator(
                                 modifier = Modifier.size(28.dp),
-                                color    = MaterialTheme.colorScheme.primary
+                                color = MaterialTheme.colorScheme.primary
                             )
                         }
 
                         // ── Not enough days yet ──────────────────────────────────
                         is A1cState.InsufficientData -> {
                             Text(
-                                text       = "${s.daysWithData}/90 days",
-                                style      = MaterialTheme.typography.displaySmall,
+                                text = "${s.daysWithData}/${A1cCalculator.TARGET_DAYS} days",
+                                style = MaterialTheme.typography.displaySmall,
                                 fontWeight = FontWeight.Bold,
-                                color      = MaterialTheme.colorScheme.onSurface,
-                                textAlign  = TextAlign.Center
-                            )
-                            Spacer(Modifier.height(4.dp))
-                            Text(
-                                text      = "of CGM data collected",
-                                style     = MaterialTheme.typography.bodySmall,
-                                color     = MaterialTheme.colorScheme.onSurfaceVariant,
+                                color = MaterialTheme.colorScheme.onSurface,
                                 textAlign = TextAlign.Center
                             )
                             Spacer(Modifier.height(4.dp))
                             Text(
-                                text      = "90 days needed for ADAG estimate",
-                                style     = MaterialTheme.typography.labelSmall,
-                                color     = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
+                                text = "of CGM data collected",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center
+                            )
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                text = "${A1cCalculator.APPROXIMATE_MIN_DAYS} days minimum for A1C estimate",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(
+                                    alpha = 0.55f
+                                ),
                                 textAlign = TextAlign.Center
                             )
                         }
@@ -98,33 +103,36 @@ fun A1cCard(state: A1cState, modifier: Modifier = Modifier) {
                         // ── Ready ─────────────────────────────────────────────────
                         is A1cState.Ready -> {
                             val animated by animateFloatAsState(
-                                targetValue   = s.a1cPercent.toFloat(),
-                                animationSpec = spring(
+                                targetValue = s.a1cPercent.toFloat(),
+                                animationSpec =
+                                spring(
                                     dampingRatio = Spring.DampingRatioMediumBouncy,
-                                    stiffness    = Spring.StiffnessMedium
+                                    stiffness = Spring.StiffnessMedium
                                 ),
                                 label = "A1cValueAnim"
                             )
                             val prefix = if (s.isApproximate) "~" else ""
                             Text(
-                                text       = "$prefix%.1f%%".format(animated),
-                                style      = MaterialTheme.typography.displaySmall,
+                                text = "$prefix%.1f%%".format(animated),
+                                style = MaterialTheme.typography.displaySmall,
                                 fontWeight = FontWeight.ExtraBold,
-                                color      = MaterialTheme.colorScheme.onSurface,
-                                textAlign  = TextAlign.Center
-                            )
-                            Spacer(Modifier.height(4.dp))
-                            Text(
-                                text      = "eA1C (ADAG formula)",
-                                style     = MaterialTheme.typography.bodySmall,
-                                color     = MaterialTheme.colorScheme.onSurfaceVariant,
+                                color = MaterialTheme.colorScheme.onSurface,
                                 textAlign = TextAlign.Center
                             )
                             Spacer(Modifier.height(4.dp))
                             Text(
-                                text      = "${s.daysWithData} days of data",
-                                style     = MaterialTheme.typography.labelSmall,
-                                color     = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.60f),
+                                text = "eA1C (ADAG formula)",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center
+                            )
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                text = "${s.daysWithData} days of data",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(
+                                    alpha = 0.60f
+                                ),
                                 textAlign = TextAlign.Center
                             )
                         }

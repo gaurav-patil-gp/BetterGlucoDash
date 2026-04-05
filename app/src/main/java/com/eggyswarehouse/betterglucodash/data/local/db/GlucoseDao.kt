@@ -16,4 +16,8 @@ interface GlucoseDao {
 
     @Query("DELETE FROM glucose_readings WHERE timestampUtc < :cutoff")
     suspend fun deleteOlderThan(cutoff: Long)
+
+    /** Wipes all glucose readings (used by "Clear Local Data" in the dashboard). */
+    @Query("DELETE FROM glucose_readings")
+    suspend fun deleteAll()
 }

@@ -14,9 +14,8 @@ package com.eggyswarehouse.betterglucodash.ui.dashboard.average
  *   - Any contiguous gap > 2h: [IncompleteData] — sensor interruption.
  */
 sealed class AverageState {
-
     /** Room query in-flight — shown briefly on first launch. */
-    object Calculating : AverageState()
+    data object Calculating : AverageState()
 
     /**
      * Fewer than 22 of the 24 one-hour buckets contain at least one reading.
@@ -29,7 +28,7 @@ sealed class AverageState {
      * A contiguous gap > 2 hours exists in the window — sensor interruption.
      * The average cannot be trusted medically; display an alert.
      */
-    object IncompleteData : AverageState()
+    data object IncompleteData : AverageState()
 
     /**
      * Sufficient coverage — a reliable 24h average is ready.
@@ -41,10 +40,10 @@ sealed class AverageState {
      * @param isMmol         True for CA region (display in mmol/L).
      */
     data class Ready(
-        val averageMgDl:    Double,
+        val averageMgDl: Double,
         val displayAverage: Double,
-        val hoursWithData:  Int,
-        val isApproximate:  Boolean,
-        val isMmol:         Boolean
+        val hoursWithData: Int,
+        val isApproximate: Boolean,
+        val isMmol: Boolean
     ) : AverageState()
 }

@@ -33,11 +33,7 @@ data class UserData(val id: String = "")
  * @property duration Token validity window in milliseconds.
  */
 @Serializable
-data class AuthTicket(
-    val token: String,
-    val expires: Long = 0,
-    val duration: Long = 0
-)
+data class AuthTicket(val token: String, val expires: Long = 0, val duration: Long = 0)
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Connection / patient models
@@ -68,7 +64,7 @@ data class PatientConnection(
  * **Important:** Abbott **pre-converts** [Value] to the user's regional unit before
  * returning it — no client-side unit conversion is required or desired.
  *  - Canada (`api-ca.libreview.io`): [Value] is in **mmol/L** (e.g. `10.1`)
- *  - US (`api-us.libreview.io`):    [Value] is in **mg/dL**  (e.g. `182`)
+ *  - US (`api-us.libreview.io`): [Value] is in **mg/dL**  (e.g. `182`)
  *
  * Use [ValueInMgPerDl] only for raw sensor math or future unit conversion (V2+).
  *
@@ -104,7 +100,4 @@ data class GraphResponse(val status: Int, val data: GraphData? = null)
  *                        Available immediately — no extra API call needed for V2 charts.
  */
 @Serializable
-data class GraphData(
-    val connection: PatientConnection? = null,
-    val graphData: List<GlucoseMeasurement> = emptyList()
-)
+data class GraphData(val connection: PatientConnection? = null, val graphData: List<GlucoseMeasurement> = emptyList())

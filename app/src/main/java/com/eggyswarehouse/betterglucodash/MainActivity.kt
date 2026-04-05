@@ -22,7 +22,6 @@ import com.eggyswarehouse.betterglucodash.ui.navigation.Screen
 import com.eggyswarehouse.betterglucodash.ui.theme.BetterGlucoDashTheme
 
 class MainActivity : ComponentActivity() {
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val authManager = (applicationContext as GlucoDashApplication).container.authManager
@@ -36,7 +35,8 @@ class MainActivity : ComponentActivity() {
 
                 LaunchedEffect(Unit) {
                     val token = authManager.getToken()
-                    startDestination = if (token.isNullOrEmpty()) Screen.Login.route else Screen.Dashboard.route
+                    startDestination =
+                        if (token.isNullOrEmpty()) Screen.Login.route else Screen.Dashboard.route
                 }
 
                 Surface(

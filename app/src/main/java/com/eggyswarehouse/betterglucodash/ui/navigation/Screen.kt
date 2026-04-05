@@ -7,6 +7,7 @@ package com.eggyswarehouse.betterglucodash.ui.navigation
  * This replaces magic string literals ("login", "dashboard") throughout the app.
  */
 sealed class Screen(val route: String) {
-    object Login     : Screen("login")
-    object Dashboard : Screen("dashboard")
+    data object Login : Screen("login")
+
+    data object Dashboard : Screen("dashboard")
 }

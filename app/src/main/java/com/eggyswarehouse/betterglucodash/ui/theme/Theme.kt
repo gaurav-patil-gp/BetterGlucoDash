@@ -8,49 +8,53 @@ import androidx.compose.runtime.CompositionLocalProvider
 
 // ── M3 colour schemes ─────────────────────────────────────────────────────────
 
-private val DarkColorScheme = darkColorScheme(
-    primary               = PrimaryDark,
-    onPrimary             = OnPrimaryDark,
-    primaryContainer      = PrimaryContainerDark,
-    onPrimaryContainer    = OnPrimaryContainerDark,
-    background            = BackgroundDark,
-    onBackground          = OnSurfaceDark,
-    surface               = SurfaceDark,
-    onSurface             = OnSurfaceDark,
-    surfaceVariant        = SurfaceVariantDark,
-    onSurfaceVariant      = OnSurfaceVariantDark,
-    error                 = ErrorDark
-)
+private val DarkColorScheme =
+    darkColorScheme(
+        primary = PrimaryDark,
+        onPrimary = OnPrimaryDark,
+        primaryContainer = PrimaryContainerDark,
+        onPrimaryContainer = OnPrimaryContainerDark,
+        background = BackgroundDark,
+        onBackground = OnSurfaceDark,
+        surface = SurfaceDark,
+        onSurface = OnSurfaceDark,
+        surfaceVariant = SurfaceVariantDark,
+        onSurfaceVariant = OnSurfaceVariantDark,
+        error = ErrorDark
+    )
 
-private val LightColorScheme = lightColorScheme(
-    primary               = PrimaryLight,
-    onPrimary             = OnPrimaryLight,
-    primaryContainer      = PrimaryContainerLight,
-    onPrimaryContainer    = OnPrimaryContainerLight,
-    background            = BackgroundLight,
-    onBackground          = OnSurfaceLight,
-    surface               = SurfaceLight,
-    onSurface             = OnSurfaceLight,
-    surfaceVariant        = SurfaceVariantLight,
-    onSurfaceVariant      = OnSurfaceVariantLight,
-    error                 = ErrorLight
-)
+private val LightColorScheme =
+    lightColorScheme(
+        primary = PrimaryLight,
+        onPrimary = OnPrimaryLight,
+        primaryContainer = PrimaryContainerLight,
+        onPrimaryContainer = OnPrimaryContainerLight,
+        background = BackgroundLight,
+        onBackground = OnSurfaceLight,
+        surface = SurfaceLight,
+        onSurface = OnSurfaceLight,
+        surfaceVariant = SurfaceVariantLight,
+        onSurfaceVariant = OnSurfaceVariantLight,
+        error = ErrorLight
+    )
 
 // ── Glucose CompositionLocal pairs ────────────────────────────────────────────
 
-private val DarkGlucoseColors = GlucoseColors(
-    inRange      = GlucoseGreenDark,
-    slightlyHigh = GlucoseAmberDark,
-    high         = GlucoseOrangeDark,
-    low          = GlucoseRedDark
-)
+private val DarkGlucoseColors =
+    GlucoseColors(
+        inRange = GlucoseGreenDark,
+        slightlyHigh = GlucoseAmberDark,
+        high = GlucoseOrangeDark,
+        low = GlucoseRedDark
+    )
 
-private val LightGlucoseColors = GlucoseColors(
-    inRange      = GlucoseGreenLight,
-    slightlyHigh = GlucoseAmberLight,
-    high         = GlucoseOrangeLight,
-    low          = GlucoseRedLight
-)
+private val LightGlucoseColors =
+    GlucoseColors(
+        inRange = GlucoseGreenLight,
+        slightlyHigh = GlucoseAmberLight,
+        high = GlucoseOrangeLight,
+        low = GlucoseRedLight
+    )
 
 /**
  * Root theme composable for BetterGlucoDash.
@@ -64,18 +68,15 @@ private val LightGlucoseColors = GlucoseColors(
  * correctly and predictably.
  */
 @Composable
-fun BetterGlucoDashTheme(
-    forceDark: Boolean = true,
-    content: @Composable () -> Unit
-) {
-    val colorScheme   = if (forceDark) DarkColorScheme   else LightColorScheme
+fun BetterGlucoDashTheme(forceDark: Boolean = true, content: @Composable () -> Unit) {
+    val colorScheme = if (forceDark) DarkColorScheme else LightColorScheme
     val glucoseColors = if (forceDark) DarkGlucoseColors else LightGlucoseColors
 
     CompositionLocalProvider(LocalGlucoseColors provides glucoseColors) {
         MaterialTheme(
             colorScheme = colorScheme,
-            typography  = Typography,
-            content     = content
+            typography = Typography,
+            content = content
         )
     }
 }

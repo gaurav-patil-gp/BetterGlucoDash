@@ -14,21 +14,22 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun LoginScreen(
-    onLoginSuccess: () -> Unit,
-    viewModel: AuthViewModel = viewModel(factory = AuthViewModel.Factory)
-) {
+fun LoginScreen(onLoginSuccess: () -> Unit, viewModel: AuthViewModel = viewModel(factory = AuthViewModel.Factory)) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
+    // Consume the success flag immediately after navigating to prevent re-fire
+    // if the ViewModel remains alive while the back-stack re-enters this screen.
     LaunchedEffect(uiState.isSuccess) {
         if (uiState.isSuccess) {
             onLoginSuccess()
+            viewModel.consumeSuccess()
         }
     }
 
     Scaffold { innerPadding ->
         Column(
-            modifier = Modifier
+            modifier =
+            Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
                 .padding(horizontal = 24.dp),
@@ -62,7 +63,8 @@ fun LoginScreen(
                 value = uiState.email,
                 onValueChange = viewModel::updateEmail,
                 label = { Text("Email") },
-                modifier = Modifier
+                modifier =
+                Modifier
                     .fillMaxWidth()
                     .padding(bottom = 16.dp),
                 shape = RoundedCornerShape(16.dp),
@@ -74,7 +76,8 @@ fun LoginScreen(
                 onValueChange = viewModel::updatePassword,
                 label = { Text("Password") },
                 visualTransformation = PasswordVisualTransformation(),
-                modifier = Modifier
+                modifier =
+                Modifier
                     .fillMaxWidth()
                     .padding(bottom = 24.dp),
                 shape = RoundedCornerShape(16.dp),
@@ -83,7 +86,8 @@ fun LoginScreen(
 
             // Region selector — locks display units for the session (CA=mmol/L, US=mg/dL)
             Row(
-                modifier = Modifier
+                modifier =
+                Modifier
                     .fillMaxWidth()
                     .padding(bottom = 32.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly
@@ -103,7 +107,8 @@ fun LoginScreen(
             Button(
                 onClick = viewModel::login,
                 enabled = !uiState.isLoading,
-                modifier = Modifier
+                modifier =
+                Modifier
                     .fillMaxWidth()
                     .height(56.dp),
                 shape = RoundedCornerShape(24.dp)
@@ -121,8 +126,9 @@ fun LoginScreen(
             // ── Regulatory disclaimer (PRD §3) ────────────────────────────────
             Spacer(modifier = Modifier.height(24.dp))
             Text(
-                text = "⚠️ Not for medical decisions. This app provides supplemental analytics only " +
-                       "and must not be used to inform insulin dosing or any clinical action.",
+                text =
+                "⚠️ Not for medical decisions. This app provides supplemental analytics only " +
+                    "and must not be used to inform insulin dosing or any clinical action.",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center

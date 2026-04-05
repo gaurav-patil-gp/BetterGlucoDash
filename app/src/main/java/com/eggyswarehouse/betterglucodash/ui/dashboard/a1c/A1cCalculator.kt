@@ -1,8 +1,8 @@
 package com.eggyswarehouse.betterglucodash.ui.dashboard.a1c
 
 import com.eggyswarehouse.betterglucodash.data.local.db.GlucoseReadingEntity
-import java.util.Calendar
-import java.util.TimeZone
+import java.time.Instant
+import java.time.ZoneOffset
 
 /**
  * Calculates an estimated HbA1c (eA1C) from Room glucose readings.
@@ -23,30 +23,29 @@ import java.util.TimeZone
  * ```
  *
  * ## Minimum Data Requirement
- * The ADAG study used 90-day data windows. A 60-day minimum is applied here:
+ * The ADAG study used 90-day data windows. A [APPROXIMATE_MIN_DAYS]-day minimum is applied here:
  *  - Red blood cells live ~120 days; HbA1c is a time-weighted integral.
- *  - With < 60 days the estimate is skewed toward recent readings.
+ *  - With fewer days the estimate is skewed toward recent readings.
  *  - We count **distinct calendar days** (UTC) with ≥ 1 reading.
  *
  * ## Coverage thresholds
- * | Days with data | Result  |
- * |----------------|---------|
- * | ≥ 57           | [A1cState.Ready] exact  |
- * | 50–56          | [A1cState.Ready] ~      |
- * | < 50           | [A1cState.InsufficientData] |
+ * | Days with data              | Result                      |
+ * |-----------------------------|-----------------------------|
+ * | ≥ [FULL_CONFIDENCE_DAYS]    | [A1cState.Ready] exact       |
+ * | [APPROXIMATE_MIN_DAYS]–84   | [A1cState.Ready] ~           |
+ * | < [APPROXIMATE_MIN_DAYS]    | [A1cState.InsufficientData]  |
  *
  * Has no Android framework dependencies — fully unit-testable in plain JVM tests.
  */
 object A1cCalculator {
-
     /** Target calendar days for a clinically meaningful eA1C estimate (ADA/ADAG 2008). */
-    private const val TARGET_DAYS = 90
+    const val TARGET_DAYS = 90
 
     /** Days with data for full-confidence estimate (94% of 90-day window). */
-    private const val FULL_CONFIDENCE_DAYS = 85
+    const val FULL_CONFIDENCE_DAYS = 85
 
     /** Minimum days for an approximate estimate (~). */
-    private const val APPROXIMATE_MIN_DAYS = 70
+    const val APPROXIMATE_MIN_DAYS = 70
 
     // ── Public API ────────────────────────────────────────────────────────────
 
@@ -59,15 +58,16 @@ object A1cCalculator {
     fun compute(readings: List<GlucoseReadingEntity>): A1cState {
         if (readings.isEmpty()) return A1cState.InsufficientData(daysWithData = 0)
 
-        // Count distinct UTC calendar days
-        val utcCal  = Calendar.getInstance(TimeZone.getTimeZone("UTC"))
-        val dayKeys = readings.map { entity ->
-            utcCal.timeInMillis = entity.timestampUtc
-            val y = utcCal.get(Calendar.YEAR)
-            val m = utcCal.get(Calendar.MONTH)
-            val d = utcCal.get(Calendar.DAY_OF_MONTH)
-            "$y-$m-$d"
-        }.toSet()
+        // Count distinct UTC calendar days using immutable java.time (thread-safe).
+        val dayKeys =
+            readings
+                .map { entity ->
+                    Instant
+                        .ofEpochMilli(entity.timestampUtc)
+                        .atZone(ZoneOffset.UTC)
+                        .toLocalDate()
+                        .toString() // "YYYY-MM-DD" — unique per calendar day
+                }.toSet()
 
         val daysWithData = dayKeys.size.coerceAtMost(TARGET_DAYS)
 
@@ -82,9 +82,9 @@ object A1cCalculator {
         val a1cPercent = (eAGMgDl + 46.7) / 28.7
 
         return A1cState.Ready(
-            a1cPercent    = a1cPercent,
-            eAGMgDl       = eAGMgDl,
-            daysWithData  = daysWithData,
+            a1cPercent = a1cPercent,
+            eAGMgDl = eAGMgDl,
+            daysWithData = daysWithData,
             isApproximate = daysWithData < FULL_CONFIDENCE_DAYS
         )
     }

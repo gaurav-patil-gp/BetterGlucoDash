@@ -1,0 +1,61 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 1,
+    "identityHash": "7eeaedf7f6bad932448e01df7613c309",
+    "entities": [
+      {
+        "tableName": "glucose_readings",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`timestampUtc` INTEGER NOT NULL, `valueMgDl` INTEGER NOT NULL, `valueDisplay` REAL NOT NULL, `trendArrow` INTEGER NOT NULL, `measurementColor` INTEGER NOT NULL, `region` TEXT NOT NULL, PRIMARY KEY(`timestampUtc`))",
+        "fields": [
+          {
+            "fieldPath": "timestampUtc",
+            "columnName": "timestampUtc",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "valueMgDl",
+            "columnName": "valueMgDl",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "valueDisplay",
+            "columnName": "valueDisplay",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "trendArrow",
+            "columnName": "trendArrow",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "measurementColor",
+            "columnName": "measurementColor",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "region",
+            "columnName": "region",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "timestampUtc"
+          ]
+        }
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '7eeaedf7f6bad932448e01df7613c309')"
+    ]
+  }
+}
